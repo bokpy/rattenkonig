@@ -12,6 +12,7 @@ from icecream import ic
 from king import MouseKing
 from mouseTables import event_types_by_number
 import toys as toy
+from toys import EventsById
 
 ic.configureOutput(includeContext=True)
 DEBUG=print
@@ -32,19 +33,13 @@ class Musculus(toy.MouseIdentity):
        """
         #print(f'Musculus at {sys_no}')
         toy.MouseIdentity.__init__(S,sys_no)
-        # if .import_lookup() set S.event to -1 the events of this mouse
-        # are left alone so no interception.
-        S.kin = False
-        S.import_lookup()
         S.my_events=[]
         if S.event < 0:
             return
-        if S.kin:
-            S.look_for_kin()
-        else:
-            S.my_events=[S.event]
+        S.import_lookup()
 
     def __str__(S):
+
         sys_mouse=super(Musculus, S).__str__()
         return f'Musculus({sys_mouse})'
 
@@ -56,8 +51,9 @@ class Musculus(toy.MouseIdentity):
         #     return [S.on_click(input_device) for input_device in S.devices]
 
     def event_action(S,event):
-        toy.event_print(event)
-        print (f'{S.name=} ')
+        action=S.go_between[event.type][event.code]
+        #ic(action)
+        action(event)
 
     def events(S):
         return S.my_events
@@ -83,24 +79,27 @@ class Musculus(toy.MouseIdentity):
         #ic(S.my_events)
 
     def import_lookup(S):
-        ic(config_dir)
+        #ic(config_dir)
         module_name = toy.sanitize_filename(S.name)
         try:
             config = importlib.import_module(module_name)
         except Exception as e:
-            ic(e)
-            print(f'No configuration for "{S.name}" found. ')
-            print(f'No Filtering.\n')
+            #ic(e)
+            print(f'"{S.name}" not used, has no config in "{config_dir}"')
             S.event = -1
             return
-        print(f'{S.name}" got it')
-        S.lookup=config.event_lookup
+        print(f'Config: "{config_dir}/{module_name}" found.')
+        if config.sibs:
+            S.look_for_kin()
+        else:
+            S.my_events=[S.event]
+        S.go_between=config.event_lookup
         config.king=MouseKing.the_king
-        S.kin = config.sibs
 
 def get_population()->[Musculus]:
     '''
     look for connected mice /sys/class/input/mouseN
+    look for input devices with 
     :return: list of class Musculus mice
     :rtype: [Musculus]
     '''

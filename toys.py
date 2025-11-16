@@ -288,29 +288,31 @@ def get_capabilities(caps:dict,event:int)->dict:
         caps[int(key[_int])] = type_events(events)
     return caps
 
-def find_kin(mouse_name:str)-> list[tuple[str,int]]:
+def find_kin(name_stam:str)-> list[tuple[str,int]]:
     '''
     Looks in '/dev/input/by-id/ for devices
-     with "mouse_name" spces replaced by underscores in it.
-    :param mouse_name: name of a mouse like "USB Gaming Mouse"
-    :type mouse_name: str
+     with "name_stam" spaces replaced by underscores in it.
+    :param name_stam: name of a mouse like "USB Gaming Mouse"
+    :type name_stam: str
     :return: list [(by-id name,event no)]
     :rtype: list[tuple[str,int]]
     '''
-    if not isinstance(mouse_name,str):
+    if not isinstance(name_stam,str):
         ic()
         raise ValueError
 
-    mouse_stam=mouse_name.replace(' ','_')[:12]
+    mouse_stam=name_stam.replace(' ','_')
     kin=[]
     for sib in glob.glob('/dev/input/by-id/*'+mouse_stam+'*'):
         lnk = os.readlink(sib )
         kin.append((sib[17:],extract_at_end_int(lnk)))
     return kin
 
-
-
 class EventsById(dict):
+    '''
+    a dictionary of
+     {event numbers:names found in '/dev/input/by-id/device_name,... }
+    '''
     def __init__(S):
         super().__init__(S)
         #S.reversed={}
@@ -320,14 +322,19 @@ class EventsById(dict):
             S[event]=by_id[17:]
             #S.reversed[by_id]=event
 
+    def kin_events(S,name_stam):
+        events=[event for event,name in S.items() if name.startswith(name_stam)]
+        return events
+
     def sibs(S,brother:int,brother_name:str)->dict:
-        if not isinstance(brother,int):
-           raise ValueError
+        # if not isinstance(brother,int):
+        #    raise ValueError
         if not isinstance(brother_name,str):
             ic()
             raise ValueError
 
         brother_name=brother_name.replace(' ','_')
+
         #print(f'{brother} -> "{brother_name}"')
         family=[]
         for event,name in S.items():

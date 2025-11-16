@@ -17,11 +17,6 @@ parser.add_argument('-l', '--list',
                     help='List mouse devices and other input devices with simular names',
                     action='store_true',
                     )
-#
-# parser.add_argument('-v', '--verbose',
-#
-#                     action='store_true',
-#                     )
 
 parser.add_argument('-v', '--verbose',
                     help='Verbose output.',

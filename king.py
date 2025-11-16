@@ -36,10 +36,8 @@ Notes
 
 Justness estimate: 92% — typical on most Linux distributions using udev.
 """
-import evdev
-import glob
+from evdev import UInput,ecodes as ec
 import atexit
-# import UInput, ecodes as e
 import time
 from Xlib import display
 
@@ -67,32 +65,38 @@ def get_window_info(window):
         return [0,None,None,None]
     return [window,window.get_wm_name()] + list(window.get_wm_class())
 
-class MouseKing:
+class MouseKing(UInput):
     """class writing the mouse and keyboard events"""
     the_king=None
+
     def __init__(S):
         """a new uinput"""
         if MouseKing.the_king:
             print(f'Only one mouse can bee the King')
             exit(1)
-        MouseKing.the_king=S
-        S.name = "Ratoncito Perez"
-        S.pressed_keys_owner=None
-        S.pressed_keys=None
-
         try:
-            S.ui_mouse = evdev.UInput(name=S.name,vendor=0xb0b0,version=0xbbb)
+            UInput.__init__(S,name="Ratoncito Perez",vendor=0xb0b0,version=0xbbb)
+            #UInput.__init__(S) #, name="Ratoncito Perez", vendor=0xb0b0, version=0xbbb)
+            atexit.register(S.abdicate_crown)
         except PermissionError as e:
             print(help_text)
             exit (e.errno)
-        atexit.register(S.close)
 
-    def close(S):
-        print(f'closing uinput mouse "{S.name}"')
-        S.ui_mouse.close()
+        MouseKing.the_king=S
+        S.pressed_keys=None
+
+    def abdicate_crown(S):
+        S.close()
+        print(f'Royal highness "{S.name}" abdicated.')
+
+    def squeak(S,event):
+        print(f'King squeak got {event}')
+        S.write_event(event)
+        S.syn()
 
     def default(S,event):
-        print(f'King Default got {event}')
+        #print(".",end='',flush=True)
+        S.squeak(event)
 
     def hold_keys(S,house_mouse_id:int,keys:[int])-> None:
         # no hold keys pressed just press
@@ -114,11 +118,14 @@ class MouseKing:
     def realese_keys(S):
         for key in S.pressed_keys:
             print(f'realese key[{key}]')
+            S.w
         S.pressed_keys=[]
         S.pressed_keys_owner=None
 
-    def write_event(S,house_mouse_id:int,event:evdev.events.InputEvent)->None:
+    def write_happening(S,event)->None:
         print(f'MouseKing.write: {event}')
+        S.write_event(event)
+        S.syn()
 
 # accepts only KEY_* events by default
 # ui.write(e.EV_KEY, e.KEY_A, 1)  # KEY_A down
