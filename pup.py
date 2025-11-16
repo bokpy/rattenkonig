@@ -19,14 +19,13 @@ def set_config_dir(d):
 
 class Pup(toy.MouseIdentity,trick.MouseCapabilities):
 
-    def __init__(S,mouse_tag:int):
-        if not isinstance(mouse_tag, int):
-            print('Pup expects an int value for "mouse_tag"')
-            print('of a path /dev/class/input/mouse"mouse_tag"')
-            raise ValueError
+    def __init__(S,event_number:int):
+        if not isinstance(event_number, int):
+            print('Pup expects an int value for "event_number"')
+            raise TypeError
         # ic()
         # ic(mouse_tag)
-        toy.MouseIdentity.__init__(S,mouse_tag)
+        toy.MouseIdentity.__init__(S,event_number)
         #S.zip=trick.MouseZip(mouse_tag)
         trick.MouseCapabilities.__init__(S,S.event)
         S.kin=toy.find_kin(S.name) # list [(by-id name,event no)]
@@ -185,7 +184,7 @@ def make_a_Pup()->Pup|None:
     :return:
     :rtype:
     '''
-    mouse_name,mouse_event=toy.catch_a_moving_mouse()
+    mouse_name,mouse_event=toy.catch_a_reacting_mouse()
     pinky_sys_no = trick.SysDevEvent().sys_mouse_of_event(mouse_event)
     pinky=Pup(pinky_sys_no)
     pinky.show(capabilities=True,short=False)

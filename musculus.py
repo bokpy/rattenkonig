@@ -107,7 +107,8 @@ def get_population()->[Musculus]:
     global king
     king=MouseKing()
     it = toy.IterSysMouse()
-    return [Musculus(no) for no in toy.get_sys_mouse_numbers()]
+    #return [Musculus(no) for no in toy.get_sys_mouse_numbers()]
+    return [Musculus(no) for no in toy.get_mice_and_keyboards()]
 
 def main(argv: list[str] | None = None) -> int:
     set_config_dir('./config_test/')

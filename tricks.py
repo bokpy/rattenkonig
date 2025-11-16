@@ -17,29 +17,29 @@ timeout=12
 _int=1
 _str=0
 
-class SysDevEvent:
-    sys_to_dev={}
-    dev_to_sys= {}
-    def __init__(S):
-        if SysDevEvent.sys_to_dev:
-            return
-
-        for g in glob.glob('/sys/class/input/mouse*'):
-            sys=toy.extract_at_end_int(g)
-            #print(f'{sys=}')
-            dev=glob.glob(g+'/device/event*')[0]
-            dev=toy.extract_at_end_int(dev)
-            #print(f'{dev=}"')
-            SysDevEvent.sys_to_dev[sys]=dev
-            SysDevEvent.dev_to_sys[dev]=sys
-        #ic(SysDevEvent.sys_to_dev,SysDevEvent.dev_to_sys)
-
-    def event_of_sys_mouse(S,no):
-        return SysDevEvent.sys_to_dev[no]
-
-    def sys_mouse_of_event(S,no):
-        return SysDevEvent.dev_to_sys[no]
-
+# class SysDevEvent:
+#     sys_to_dev={}
+#     dev_to_sys= {}
+#     def __init__(S):
+#         if SysDevEvent.sys_to_dev:
+#             return
+#
+#         for g in glob.glob('/sys/class/input/mouse*'):
+#             sys=toy.extract_at_end_int(g)
+#             #print(f'{sys=}')
+#             dev=glob.glob(g+'/device/event*')[0]
+#             dev=toy.extract_at_end_int(dev)
+#             #print(f'{dev=}"')
+#             SysDevEvent.sys_to_dev[sys]=dev
+#             SysDevEvent.dev_to_sys[dev]=sys
+#         #ic(SysDevEvent.sys_to_dev,SysDevEvent.dev_to_sys)
+#
+#     def event_of_sys_mouse(S,no):
+#         return SysDevEvent.sys_to_dev[no]
+#
+#     def sys_mouse_of_event(S,no):
+#         return SysDevEvent.dev_to_sys[no]
+#
 
 '''
 dev.capabilities(verbose=True)
