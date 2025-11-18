@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import os
 import time
-from evdev import InputDevice
+from evdev import ecodes as ec
 import toys as toy
 import tricks as trick
 from icecream import ic
@@ -17,37 +17,43 @@ def set_config_dir(d):
     global config_dir
     config_dir=toy.make_config_dir(d)
 
-class Pup(toy.MouseIdentity,trick.MouseCapabilities):
+class Litter(trick.MouseCapabilities):
 
-    def __init__(S,event_number:int):
-        if not isinstance(event_number, int):
-            print('Pup expects an int value for "event_number"')
-            raise TypeError
-        # ic()
-        # ic(mouse_tag)
-        toy.MouseIdentity.__init__(S,event_number)
-        #S.zip=trick.MouseZip(mouse_tag)
-        trick.MouseCapabilities.__init__(S,S.event)
-        S.kin=toy.find_kin(S.name) # list [(by-id name,event no)]
-        S.connect_with_kin=False
-        #S.output_func=print
-        #trick.MouseCapabilities.show(S)
+    def __init__(S,pups:[toy.MouseIdentity]):
+        #ic(pups)
+        trick.MouseCapabilities.__init__(S)
+        S.pups=pups
+        S.name = toy.sanitize_filename(pups[0].name)
+        #S.learn_tricks()
 
-    def __hash__(S):
+    def __str__(S):
         return S.name
-
-    def __lt__(S,O):
-        return S.name < O.name
-
-    def __eq__(S,O):
-        return S.name == O.name
-
+ 
     def learn_tricks(S):
-        events= [event for _,event in S.kin]
-        keys = trick.button_tester(S.event,events)
-        # ic(keys)
-        # input('waiting learned tricks')
-        S+=keys
+        toy.clear_screen()
+        print (f'\n"{S.name}" members:')
+        count=-1
+        for pup in S.pups: # type(pup) = toy.MouseIdentity
+            #print (f'\t{count} <-- ',end='')
+            count+=1
+            pup.get_capabilities()
+            toy.simple_capablities_show(
+                pup.capabilities
+                ,f'{count} <-- {pup.name}'
+                ,tabs='\t'
+                ,event_types=[ec.EV_KEY,ec.EV_REL,ec.EV_LED]
+            )
+        print('Input a number af a device to add or negative to stop',end='')
+        choice=toy.input_a_number(message='',max=count)
+        if choice < 0:
+            return
+        S.pups[choice].get_capable()
+
+        # events= [event for _,event in S.kin]
+        # keys = trick.button_tester(S.event,events)
+        # # ic(keys)
+        # # input('waiting learned tricks')
+        # S+=keys
 
     def add_placeholders(S,num):
         for p in range(ord('A'), ord('A') + num):
@@ -55,12 +61,13 @@ class Pup(toy.MouseIdentity,trick.MouseCapabilities):
             ic(ph)
             S.add_placeholder_EV_KEY(ph)
 
-    def show(S,capabilities=False,short=True):
+    def show(S,capabilities=False,short=True,tabs=''):
+        #ic(short,S.pups)
+        print(f'{tabs}Litter("{S.name}")')
         if short:
-            name,no = toy.MouseIdentity.name_and_number(S)
-            print(f'Mouse: {no:2d} "{name}"')
             return
-        toy.MouseIdentity.show(S)
+        for pup in S.pups:
+            print(f'{tabs}\t{pup}')
         if capabilities:
             trick.MouseCapabilities.show(S,'capabilities')
 
@@ -137,48 +144,72 @@ class Pup(toy.MouseIdentity,trick.MouseCapabilities):
             comma=','
         f.write(f'}}\n')
 
-def  catch_mice()->[Pup]:
-    '''
-    Look for mouse devices in /dev/class/input/mouse*
-    :return: a list of class Pup instances
-    :rtype: [Pup]
-    '''
-    it=toy.IterSysMouse()
-    return [Pup(sys_mouse) for sys_mouse in it]
+# def  catch_mice()->[Litter]:
+#     '''
+#     Look for mouse devices in /dev/class/input/mouse*
+#     :return: a list of class Litter instances
+#     :rtype: [Litter]
+#     '''
+#     it=toy.IterSysMouse()
+#     return [Litter(sys_mouse) for sys_mouse in it]
+#
+# def find_same_name_pub(pups)->bool:
+#     pups_iter= iter(pups)
+#     previous=next(pups_iter)
+#     for cur in pups_iter:
+#         if cur == previous:
+#             return True
+#       previous=cur
+#     return False
 
-def find_same_name_pub(pups)->bool:
-    pups_iter= iter(pups)
-    previous=next(pups_iter)
-    for cur in pups_iter:
-        if cur == previous:
-            return True
-        previous=cur
-    return False
+class Tribes(list):
+    """
+    A collection of class Liter
+    """
+    def __init__(S):
+        super().__init__(S)
+        kin=toy.family_reunion()
+        for litter,sibs in kin.items():
+            S.append(Litter(sibs))
 
-def check_mice_conected_and_on():
-    while True:
-        mice=catch_mice()
-        mice.sort()
-        listMice(mice=mice,short=True)
-        if find_same_name_pub(mice):
-            print('There are mice with the same name that will have to share'
-                  ' the same configuration.')
-        print(f'\nIf a device is not listed you can connect it or turn it on.')
-        print('Than press "R" to repeat.')
-        print('Any other key to continue.')
+    def make_templates(S):
+        while True:
+            count=-1
+            toy.clear_screen()
+            print(f'Make a configuration for one or more of these device(s)')
+            for litter in S:
+                count+=1
+                print(f'\t<{count}> "{litter.name}"')
+            print(f'Input choice number 0..{count} -1 to leave',end='')
+            num=toy.input_a_number('',min=-1,max=count)
+            if num<0:
+                print('Bye')
+                return
+            S[num].learn_tricks()
 
-        action=toy.get_a_user_char()
-        if action.upper() != 'R':
-            return mice
-        
-def make_a_litter():
-    while True:
-        pinky_mouse=make_a_Pup()
-        if not pinky_mouse:
-            break
-        pinky_mouse.write_configuration_template()
+# def check_mice_conected_and_on():
+#     while True:
+#         mice=catch_mice()
+#         mice.sort()
+#         listMice(mice=mice,short=True)
+#         if find_same_name_pub(mice):
+#             print('There are mice with the same name that will have to share'
+#                   ' the same configuration.')
+#         print(f'\nIf a device is not listed you can connect it or turn it on.')
+#         print('Than press "R" to repeat.')
+#         print('Any other key to continue.')
+#
+#         action=toy.get_a_user_char()
+#         if action.upper() != 'R':
+#             return mice
+#
+# def make_litters():
+#     kin=toy.family_reunion()
+#     litters=[Litter(sibs) for _,sibs in kin.items()]
+#     return litters
+#     #pinky_mouse.write_configuration_template()
 
-def make_a_Pup()->Pup|None:
+def make_a_Pup()-> Litter | None:
     '''
     interactive config template file creation
     :return:
@@ -186,7 +217,7 @@ def make_a_Pup()->Pup|None:
     '''
     mouse_name,mouse_event=toy.catch_a_reacting_mouse()
     pinky_sys_no = trick.SysDevEvent().sys_mouse_of_event(mouse_event)
-    pinky=Pup(pinky_sys_no)
+    pinky=Litter(pinky_sys_no)
     pinky.show(capabilities=True,short=False)
 
     #sibs=pinky.get_siblings_by_id()
@@ -232,22 +263,24 @@ def make_a_Pup()->Pup|None:
         return pinky
     ic('this should not happen.')
 
-def listMice(mice=None,capabilties=False,short=True)->[Pup]:
+def listMice(capabilties=False,short=True,tabs='')->None:
     '''
     show a listing of connected mouse devices
     :param capabilities: print the capabilities for each mouse
     :type capabilities: bool
     :param short: print name and event_no
     :type short: bool
-    :return: list [ Pub ]
-    :rtype:  [ Pub ]
+    :return: None
+    :rtype:   None
     '''
-    if not mice:
-        mice=catch_mice()
-    for  mouse in mice:
-            if not short :
-                print()
-            mouse.show(short=short,capabilities=capabilties)
+    tribes=Tribes()
+    for tribe in tribes:
+        if short:
+            print(tribe)
+        else:
+            tribe.show(short=short,capabilities=capabilties,tabs=tabs)
+        # if capabilties:
+        #     toy.simple_capablities_show(tribe)
 
 def clean_test_dir():
     test_dir = './test_config/'
@@ -256,23 +289,19 @@ def clean_test_dir():
         rmtree(test_dir)
     set_config_dir(test_dir)
 
+# def test_make_litters():
+#     litters = make_litters()
+#     for litter in litters:
+#         print(f'{litter}')
+
+def test_class_Tribes():
+    tribes=Tribes()
+    #listMice(capabilties=True,short=False)
+    tribes.make_templates()
+
 def main(argv: list[str] | None = None) -> int:
-    if False:
-        mice=catch_pup_mice()
-        for mouse in mice:
-            print()
-            mouse.show(capabilities=True)
-    if True:
-        #clean_test_dir()
-        set_config_dir('./config_test/')
-        make_a_litter()
-   
-    if False:
-        dev_path=toy.event_path(4)
-        dev = InputDevice(dev_path)
-        capabilities=dev.capabilities(verbose=True)
-        sanitized = sanitize_verbose_capabilities(capabilities)
-        ic(sanitized)
+    # test_make_litters()
+    test_class_Tribes()
 
 if __name__ == "__main__":
     main()

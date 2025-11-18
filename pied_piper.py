@@ -61,15 +61,15 @@ async def main():
 
 if __name__ == "__main__":
     if args.list:
-        import pup
-        pup.listMice(short=not args.verbose)
+        import litter
+        litter.listMice(short=not args.verbose)
         exit(0)
 
     mus.set_config_dir(args.configdir)
     if args.template:
-        import pup
+        import litter
         pup.set_config_dir(args.configdir)
-        pup.make_a_litter()
+        litter.make_a_litter()
         exit(0)
 
     population_buildup()
