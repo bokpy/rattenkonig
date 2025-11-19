@@ -4,6 +4,7 @@ import time
 from evdev import ecodes as ec
 import toys as toy
 import tricks as trick
+import pinky as pink
 from icecream import ic
 
 DEBUG=print
@@ -19,7 +20,7 @@ def set_config_dir(d):
 
 class Litter(trick.MouseCapabilities):
 
-    def __init__(S,pups:[toy.MouseIdentity]):
+    def __init__(S,pups:[pink.Pinky]):
         #ic(pups)
         trick.MouseCapabilities.__init__(S)
         S.pups=pups
@@ -33,21 +34,26 @@ class Litter(trick.MouseCapabilities):
         toy.clear_screen()
         print (f'\n"{S.name}" members:')
         count=-1
-        for pup in S.pups: # type(pup) = toy.MouseIdentity
+        for pup in S.pups: # type(pup) = toy.Pinky
             #print (f'\t{count} <-- ',end='')
             count+=1
             pup.get_capabilities()
-            toy.simple_capablities_show(
-                pup.capabilities
-                ,f'{count} <-- {pup.name}'
-                ,tabs='\t'
-                ,event_types=[ec.EV_KEY,ec.EV_REL,ec.EV_LED]
-            )
-        print('Input a number af a device to add or negative to stop',end='')
-        choice=toy.input_a_number(message='',max=count)
-        if choice < 0:
-            return
-        S.pups[choice].get_capable()
+            if ec.EV_REL in pup.capabilities:
+                S.add(ec.EV_REL,pup.capabilities[ec.EV_REL])
+            if ec.EV_LED in  pup.capabilities:
+                S.add(ec.EV_LED,pup.capabilities[ec.EV_LED])
+            if ec.EV_KEY in pup.capabilities:
+                toy.simple_capablities_show(
+                    pup.capabilities
+                    ,f'{count} <-- {pup.name}'
+                    ,tabs='\t'
+                    ,event_types=[ec.EV_KEY,ec.EV_REL,ec.EV_LED]
+                )
+                print('From which device to select keystrokes negative to stop',end='')
+                choice=toy.input_a_number(message='',max=count)
+                if choice < 0:
+                    return
+                S.pups[choice].contribute_capabilities()
 
         # events= [event for _,event in S.kin]
         # keys = trick.button_tester(S.event,events)

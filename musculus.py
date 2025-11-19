@@ -10,9 +10,9 @@ from evdev import ecodes as ec
 #from collections import defaultdict
 from icecream import ic
 from king import MouseKing
+import pinky as pink
 from mouseTables import event_types_by_number
 import toys as toy
-from toys import EventsById
 
 ic.configureOutput(includeContext=True)
 DEBUG=print
@@ -25,14 +25,14 @@ def set_config_dir(d):
     # enable import of the configuration libs
     sys.path.append(config_dir)
 
-class Musculus(toy.MouseIdentity):
+class Musculus(pink.Pinky):
 
     def __init__(S,sys_no):
         """
         sys_mouse_path = '/sys/class/input/mouseN'
        """
         #print(f'Musculus at {sys_no}')
-        toy.MouseIdentity.__init__(S,sys_no)
+        pink.Pinky.__init__(S,sys_no)
         S.my_events=[]
         if S.event < 0:
             return
