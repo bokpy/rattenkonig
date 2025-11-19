@@ -78,6 +78,15 @@ except Exception as e:
     #print (f'{e}')
     get_a_user_char=input_input
 
+def get_one_digit_int(min=0,max=9):
+    s=[chr(ord('0')+i) for i in range(min,max+1)]
+    digits='QSLB'+''.join(s)
+    print (f'Pick between {min} and {max} or Q,S,L,B,D quits',end='')
+    choice=get_a_user_char(digits)
+    if choice in  'QSLBD':
+        return -1
+    return int(choice)
+
 def event_print(event):
     _timestamp = event.timestamp()
     _type           = event.type
@@ -212,11 +221,14 @@ def pci_product_lookup(vendor_id, device_id, pad="/usr/share/hwdata/pci.ids"):
 #     ic(event_item)
 #     raise ValueError
 
+def event_path(event_number):
+    return '/dev/input/event'+str(event_number)
+
 def BTN_or_KEY_str(event_code):
     if event_code in ec.BTN:  # BTN represents button codes
-        return string_event_names( ec.BTN[code])
+        return string_event_names( ec.BTN[event_code])
     if event_code in ec.KEY:  # KEY represents key codes
-        return string_event_names( ec.KEY[code] )
+        return string_event_names( ec.KEY[event_code] )
     return 'NO_CODE'
 
 def is_BTN(event_code):
@@ -224,6 +236,18 @@ def is_BTN(event_code):
 
 def is_KEY(event_code):
     return event_code in ec.KEY
+
+def only_buttons(capabilities):
+    for code in capabilities[ec.EV_KEY]:
+        if not is_BTN(code):
+            return False
+    return True
+
+def has_no_keys(capabilities):
+    for code in capabilities[ec.EV_KEY]:
+        if is_KEY(code):
+            return False
+    return True
 
 def capablities_show(c,name='capabilities',tabs=''):
     def an_event(event):
@@ -297,9 +321,14 @@ def list_devices_with_name():
         print(f'input{input_no:<2} "{name}"')
 
 #testers
+def test_get_one_digit_int():
+    choise=1
+    while choise >= 0:
+        choise = get_one_digit_int(4,8)
+        print(f'{choise=}')
 
 def main(argv: list[str] | None = None) -> int:
-    print ('Nothing to see now')
+     test_get_one_digit_int()
 
 if __name__ == "__main__":
     main()

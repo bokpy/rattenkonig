@@ -53,7 +53,6 @@ async def read_device(dev):
     print(f'{fired}', end='', flush=True)
     fired = ' go'
 
-
 async def main():
     global event_to_mouse,mus_devices
     tasks = [asyncio.create_task(read_device(d)) for d in mus_devices]

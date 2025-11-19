@@ -8,7 +8,8 @@ import evdev
 from evdev import ecodes as ec
 #import json
 #from collections import defaultdict
-from icecream import ic
+from icecream import ic def button_tester(events:[int])-> dict[int, str]:
+#     '''
 from king import MouseKing
 import pinky as pink
 from mouseTables import event_types_by_number

@@ -9,6 +9,8 @@ import re
 from evdev import ecodes as ec
 from click import getchar
 from icecream import ic
+
+import tricks
 from mouseTables import bus_type,event_types_by_name
 
 ic.configureOutput(includeContext=True)
@@ -102,31 +104,65 @@ class Pinky:
             S.capabilities[int(key[_int])] = type_events(events)
         return S.capabilities
 
-    def contribute_keys(S)->dict[int:dict[int:str]]:
+    def show_key_events(S):
+        print(f'\tkeys :\n\t',end='')
+        count = 0
+        for key_code, key_name in S.capabilities[ec.EV_KEY].items():
+            count+=1
+            if count > 31:
+                print(f'\n\t<<{len(S.capabilities[ec.EV_KEY])}>> in total.')
+                return
+            if (count % 8) == 0:
+                print('\n\t', end='')
+            print(f'[{key_code}:"{key_name}"] ', end='')
+        print()
+
+    def key_selection(S,litter)->dict[int:str]:
         '''
-        Selection of capabilities to handle by it's family Litter
-        :return: dict{EV_TYPE:{ecode:ecode_name}}
-        :rtype: dict[int[int:str]]
+        Selection of capabilities to handle by its family Litter
+        :return: dict{ecode:ecode_name}}
+        :rtype: dict[int:str]
         '''
+        print(f'"{S.name}" key selection.')
         if not S.capabilities:
             S.get_capabilities()
         toy.clear_screen()
-        caps={}
-        print (f'"{S.name}" capabilities selection.')
-        toy.simple_capablities_show(S.capabilities,tabs='\t'
-                                ,event_types= [ec.EV_KEY,ec.EV_REL,ec.EV_LED])
-        print (f'N non, A all, P Placeholders,I Interactive',end='')
-        choise = toy.get_a_user_char('NAPI')
+        key_events={}
+        S.show_key_events()
+        print(f'N non, A all, P Placeholders,I Interactive, Q,S,L,B,D quits', end='')
+        choise = toy.get_a_user_char('NAPIQSLBD')
+        if choise in 'QSLBD':
+            return {}
         if choise == 'N':
-            return caps
+            return  key_events
         if choise == 'A':
-            return S.capabilities
+            return S.capabilities[ec.EV_KEY]
         if choise == 'P':
-            ic()
-            print('Placeholders')
+            ret = S.make_placeholders()
+            return ret
+            # ic(ret)
+            # input()
         if choise == 'I':
-            ic()
+            watched_events=litter.litter_events()
+            ic(watched_events)
+            input()
+            ret = tricks.button_tester(watched_events)
             print('Interactive')
+            return {}
+        return {}
+
+    def make_placeholders(S):
+        print('\nEnter the number of place holders to add ',end='')
+        num=toy.input_a_number()
+        if num < 1:
+            print(f'Nothing to do for {num}')
+            return {}
+        ret={}
+        for p in range(ord('A'), ord('A') + num):
+            ph = 'placeholder_' + chr(p)
+            #ic(ph)
+            ret[1024+p]=ph
+        return ret
 
 def family_reunion()->dict[int:[]]:
     """

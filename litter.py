@@ -10,7 +10,6 @@ from icecream import ic
 DEBUG=print
 error_ic=ic # like to keep them in error messages
 ic.configureOutput(includeContext=True)
-
 function_name_stam='act_'
 
 config_dir=''
@@ -29,43 +28,37 @@ class Litter(trick.MouseCapabilities):
 
     def __str__(S):
         return S.name
+
+    def litter_events(S):
+        return [pup.event for pup in S.pups]
  
     def learn_tricks(S):
         toy.clear_screen()
-        print (f'\n"{S.name}" members:')
+        #print (f'\n"{S.name}" members:')
         count=-1
         for pup in S.pups: # type(pup) = toy.Pinky
             #print (f'\t{count} <-- ',end='')
             count+=1
             pup.get_capabilities()
             if ec.EV_REL in pup.capabilities:
+                print (f'"{pup.name}" added relative events.')
                 S.add(ec.EV_REL,pup.capabilities[ec.EV_REL])
-            if ec.EV_LED in  pup.capabilities:
+            if ec.EV_LED in pup.capabilities:
+                print (f'"{pup.name}" added led events.')
                 S.add(ec.EV_LED,pup.capabilities[ec.EV_LED])
-            if ec.EV_KEY in pup.capabilities:
-                toy.simple_capablities_show(
-                    pup.capabilities
-                    ,f'{count} <-- {pup.name}'
-                    ,tabs='\t'
-                    ,event_types=[ec.EV_KEY,ec.EV_REL,ec.EV_LED]
-                )
-                print('From which device to select keystrokes negative to stop',end='')
-                choice=toy.input_a_number(message='',max=count)
-                if choice < 0:
-                    return
-                S.pups[choice].contribute_capabilities()
+            if not (ec.EV_KEY in pup.capabilities):
+                continue
+            buttons={code:name for code,name in pup.capabilities[ec.EV_KEY].items() if toy.is_BTN(code)}
+            ic(buttons)
+            if buttons:
+                print (f'"{pup.name}" added {buttons} events.')
+                S.add(ec.EV_KEY,buttons)
 
-        # events= [event for _,event in S.kin]
-        # keys = trick.button_tester(S.event,events)
-        # # ic(keys)
-        # # input('waiting learned tricks')
-        # S+=keys
-
-    def add_placeholders(S,num):
-        for p in range(ord('A'), ord('A') + num):
-            ph = 'placeholder_' + chr(p)
-            ic(ph)
-            S.add_placeholder_EV_KEY(ph)
+            if toy.has_no_keys(pup.capabilities):
+                continue
+            pup_key_events=pup.key_selection(S)
+            ic(pup_key_events)
+            input('Stop here')
 
     def show(S,capabilities=False,short=True,tabs=''):
         #ic(short,S.pups)
@@ -174,7 +167,7 @@ class Tribes(list):
     """
     def __init__(S):
         super().__init__(S)
-        kin=toy.family_reunion()
+        kin=pink.family_reunion()
         for litter,sibs in kin.items():
             S.append(Litter(sibs))
 
@@ -186,8 +179,8 @@ class Tribes(list):
             for litter in S:
                 count+=1
                 print(f'\t<{count}> "{litter.name}"')
-            print(f'Input choice number 0..{count} -1 to leave',end='')
-            num=toy.input_a_number('',min=-1,max=count)
+            #print(f'Input choice number 0..{count} -1 to leave',end='')
+            num=toy.get_one_digit_int(max=count)
             if num<0:
                 print('Bye')
                 return
@@ -215,59 +208,59 @@ class Tribes(list):
 #     return litters
 #     #pinky_mouse.write_configuration_template()
 
-def make_a_Pup()-> Litter | None:
-    '''
-    interactive config template file creation
-    :return:
-    :rtype:
-    '''
-    mouse_name,mouse_event=toy.catch_a_reacting_mouse()
-    pinky_sys_no = trick.SysDevEvent().sys_mouse_of_event(mouse_event)
-    pinky=Litter(pinky_sys_no)
-    pinky.show(capabilities=True,short=False)
-
-    #sibs=pinky.get_siblings_by_id()
-    sib_caps=[]
-    for sib_name,sib_event in pinky.kin:
-        if sib_event == pinky.event:
-            # print(f'This i me "{sib_name}" {sib_event}')
-            continue
-        print(f'\tsib: "{sib_name} {sib_event:2d}')
-        caps=trick.SibCapabilities(sib_event)
-        if caps.has_ev_key():
-            caps.show(tabs='\t\t')
-        else:
-            print ("\t\thas no key or button events.\n")
-        sib_caps.append((sib_name,sib_event,caps))
-
-    if len(sib_caps) == 0:
-        print(f'No sib devices found for "{pinky.name}"')
-        return pinky
-    print ('Use keys and or buttons of kin device(s)?')
-    print ('"Q" or "D" = Quit Done, "N" = Non, "A" = all, "P" = make Placeholders,\n'
-           '"S" or "I" = Select key/buttons Interactive.')
-    choice = toy.get_a_user_char('qdnapis')
-    if choice in "QD":
-        return None
-    if choice == "N":
-        return pinky
-    pinky.connect_with_kin=True
-    if choice == 'A':
-        for sib,event,caps in sib_caps:
-            print(f'add: "{sib}"')
-            pinky+=caps
-        return pinky
-    if choice == 'P':
-        print ('Enter the number of placeholders')
-        print ('0 or less to abort.')
-        num=toy.input_a_number()
-        if num > 0:
-            pinky.add_placeholders(num)
-        return pinky
-    if choice in  'IS':
-        pinky.learn_tricks()
-        return pinky
-    ic('this should not happen.')
+# def make_a_Pup()-> Litter | None:
+#     '''
+#     interactive config template file creation
+#     :return:
+#     :rtype:
+#     '''
+#     mouse_name,mouse_event=toy.catch_a_reacting_mouse()
+#     pinky_sys_no = trick.SysDevEvent().sys_mouse_of_event(mouse_event)
+#     pinky=Litter(pinky_sys_no)
+#     pinky.show(capabilities=True,short=False)
+#
+#     #sibs=pinky.get_siblings_by_id()
+#     sib_caps=[]
+#     for sib_name,sib_event in pinky.kin:
+#         if sib_event == pinky.event:
+#             # print(f'This i me "{sib_name}" {sib_event}')
+#             continue
+#         print(f'\tsib: "{sib_name} {sib_event:2d}')
+#         caps=trick.SibCapabilities(sib_event)
+#         if caps.has_ev_key():
+#             caps.show(tabs='\t\t')
+#         else:
+#             print ("\t\thas no key or button events.\n")
+#         sib_caps.append((sib_name,sib_event,caps))
+#
+#     if len(sib_caps) == 0:
+#         print(f'No sib devices found for "{pinky.name}"')
+#         return pinky
+#     print ('Use keys and or buttons of kin device(s)?')
+#     print ('"Q" or "D" = Quit Done, "N" = Non, "A" = all, "P" = make Placeholders,\n'
+#            '"S" or "I" = Select key/buttons Interactive.')
+#     choice = toy.get_a_user_char('qdnapis')
+#     if choice in "QD":
+#         return None
+#     if choice == "N":
+#         return pinky
+#     pinky.connect_with_kin=True
+#     if choice == 'A':
+#         for sib,event,caps in sib_caps:
+#             print(f'add: "{sib}"')
+#             pinky+=caps
+#         return pinky
+#     if choice == 'P':
+#         print ('Enter the number of placeholders')
+#         print ('0 or less to abort.')
+#         num=toy.input_a_number()
+#         if num > 0:
+#             pinky.add_placeholders(num)
+#         return pinky
+#     if choice in  'IS':
+#         pinky.learn_tricks()
+#         return pinky
+#     ic('this should not happen.')
 
 def listMice(capabilties=False,short=True,tabs='')->None:
     '''
