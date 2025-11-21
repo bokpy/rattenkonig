@@ -10,7 +10,7 @@ from evdev import ecodes as ec
 from click import getchar
 from icecream import ic
 
-import tricks
+import tricks as trick
 from mouseTables import bus_type,event_types_by_name
 
 ic.configureOutput(includeContext=True)
@@ -51,6 +51,9 @@ class Pinky:
         #return f'{S.vendor} {S.product} {S.version} {S.by_id_name} {S.event} '
         return f' {S.event:02d} "{S.by_id_name}"'
         #bustype[{S.bustype}] product[{S.product}] vendor[{S.vendor}] version[{S.version}]'
+
+    def __repr__(S):
+        return f'Pinky({S.event} "{S.by_id_name}")'
 
     def __lt__(S,O)->bool:
         return S.tag < O.tag
@@ -117,43 +120,10 @@ class Pinky:
             print(f'[{key_code}:"{key_name}"] ', end='')
         print()
 
-    def key_selection(S,litter)->dict[int:str]:
-        '''
-        Selection of capabilities to handle by its family Litter
-        :return: dict{ecode:ecode_name}}
-        :rtype: dict[int:str]
-        '''
-        print(f'"{S.name}" key selection.')
-        if not S.capabilities:
-            S.get_capabilities()
-        toy.clear_screen()
-        key_events={}
-        S.show_key_events()
-        print(f'N non, A all, P Placeholders,I Interactive, Q,S,L,B,D quits', end='')
-        choise = toy.get_a_user_char('NAPIQSLBD')
-        if choise in 'QSLBD':
-            return {}
-        if choise == 'N':
-            return  key_events
-        if choise == 'A':
-            return S.capabilities[ec.EV_KEY]
-        if choise == 'P':
-            ret = S.make_placeholders()
-            return ret
-            # ic(ret)
-            # input()
-        if choise == 'I':
-            watched_events=litter.litter_events()
-            ic(watched_events)
-            input()
-            ret = tricks.button_tester(watched_events)
-            print('Interactive')
-            return {}
-        return {}
 
     def make_placeholders(S):
         print('\nEnter the number of place holders to add ',end='')
-        num=toy.input_a_number()
+        num=toy.get_an_integer()
         if num < 1:
             print(f'Nothing to do for {num}')
             return {}
@@ -173,6 +143,7 @@ def family_reunion()->dict[int:[]]:
     """
     rodents=[Pinky(ssn) for ssn in toy.get_mice_and_keyboards()]
     rodents.sort()
+    #ic(rodents)
     # for creature in rodents:
     #     print(f'"{str(creature)}"')
 
@@ -193,18 +164,21 @@ def family_reunion()->dict[int:[]]:
     #ic(families)
     return families
 
-
-def family_reunion_test():
+def test_family_reunion():
     tribes = family_reunion()
     for tribe, kin in tribes.items():
         print(f'{tribe:02d}')
         for sib in kin:
             print(f'\t\t{str(sib)}')
 
+def test_pinky():
+    pup=Pinky(3)
+    pup.key_selection()
+
 
 def main(argv: list[str] | None = None) -> int:
-    # Identity_test()
-    family_reunion_test()
+    #test_pinky()
+    test_family_reunion()
 
 if __name__ == "__main__":
     main()

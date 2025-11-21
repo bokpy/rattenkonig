@@ -7,6 +7,8 @@ import tricks as trick
 import pinky as pink
 from icecream import ic
 
+from mouseDebug import capabilities_dump
+
 DEBUG=print
 error_ic=ic # like to keep them in error messages
 ic.configureOutput(includeContext=True)
@@ -17,14 +19,18 @@ def set_config_dir(d):
     global config_dir
     config_dir=toy.make_config_dir(d)
 
-class Litter(trick.MouseCapabilities):
+class Litter(trick.CapabilityDict):
 
     def __init__(S,pups:[pink.Pinky]):
-        #ic(pups)
-        trick.MouseCapabilities.__init__(S)
+        global config_dir
+        if config_dir == '':
+            ic('No config directory set')
+            exit(234)
+        trick.CapabilityDict.__init__(S)
         S.pups=pups
         S.name = toy.sanitize_filename(pups[0].name)
-        #S.learn_tricks()
+        S.file_path = config_dir + S.name +'.py'
+        ic(S.file_path)
 
     def __str__(S):
         return S.name
@@ -34,55 +40,33 @@ class Litter(trick.MouseCapabilities):
  
     def learn_tricks(S):
         toy.clear_screen()
-        #print (f'\n"{S.name}" members:')
-        count=-1
-        for pup in S.pups: # type(pup) = toy.Pinky
-            #print (f'\t{count} <-- ',end='')
-            count+=1
-            pup.get_capabilities()
-            if ec.EV_REL in pup.capabilities:
-                print (f'"{pup.name}" added relative events.')
-                S.add(ec.EV_REL,pup.capabilities[ec.EV_REL])
-            if ec.EV_LED in pup.capabilities:
-                print (f'"{pup.name}" added led events.')
-                S.add(ec.EV_LED,pup.capabilities[ec.EV_LED])
-            if not (ec.EV_KEY in pup.capabilities):
-                continue
-            buttons={code:name for code,name in pup.capabilities[ec.EV_KEY].items() if toy.is_BTN(code)}
-            ic(buttons)
-            if buttons:
-                print (f'"{pup.name}" added {buttons} events.')
-                S.add(ec.EV_KEY,buttons)
-
-            if toy.has_no_keys(pup.capabilities):
-                continue
-            pup_key_events=pup.key_selection(S)
-            ic(pup_key_events)
-            input('Stop here')
+        capabilities=trick.key_selection(S. litter_events())
+        S.update(capabilities)
+        S.show(capabilities=True,short=True)
+        warn='Write the '
+        if os.path.isfile(S.file_path):
+            warn='OVERWRITE EXISTING '
+        print(f'{warn}Configuration Template?')
+        print(f'"{S.file_path}" Yes or No',end='')
+        answer=toy.get_a_user_char('YN')
+        if answer=='N':
+            print('Got a No.')
+        elif answer=='Y':
+            S.write_configuration_template()
 
     def show(S,capabilities=False,short=True,tabs=''):
         #ic(short,S.pups)
         print(f'{tabs}Litter("{S.name}")')
-        if short:
-            return
-        for pup in S.pups:
-            print(f'{tabs}\t{pup}')
+        if not short:
+            for pup in S.pups:
+                print(f'{tabs}\t{pup}')
         if capabilities:
-            trick.MouseCapabilities.show(S,'capabilities')
+            trick.CapabilityDict.show(S,name= S.name,limit=24)
 
     def event_plus_name(S):
         return f'{S.event:>2} "{S.name}"'
 
     def write_configuration_template(S):
-        file_path = config_dir +  toy.sanitize_filename(S.name) +'.py'
-        S.file_path=os.path.abspath(file_path)
-        #ic(S.file_path)
-        if os.path.isfile(S.file_path):
-            print(f'File "{S.file_path}" exists.')
-            print('Overwrite? "N" No or "Q" Quit "Y" = Yes')
-            choice=toy.get_a_user_char('NQY')
-            if choice in 'NQ':
-                return
         try:
             f=open(S.file_path,'w')
         except Exception as e:
@@ -97,7 +81,7 @@ class Litter(trick.MouseCapabilities):
     def write_heading(S,f):
         f.write(f'# "{S.file_path}"\n')
         f.write(f'# {time.ctime()}\n')
-        S.naw_to_file(f)
+        # S.naw_to_file(f)
         f.write('\n')
         f.write(f'import evdev\n')
         f.write(f'import king\n')
@@ -107,7 +91,8 @@ class Litter(trick.MouseCapabilities):
         f.write(f'display=None\n')
 
     def write_sibling(S,f):
-        f.write(f'sibs = {S.connect_with_kin}\n')
+        kin = [ pup.by_id_name for pup in S.pups ]
+        f.write(f'sibs = [ {', '.join(kin)} ]\n')
 
     def function_name(S,event_str,event_no):
         global function_name_stam
@@ -178,89 +163,15 @@ class Tribes(list):
             print(f'Make a configuration for one or more of these device(s)')
             for litter in S:
                 count+=1
-                print(f'\t<{count}> "{litter.name}"')
+                print(f'\t<{count}> "{litter.name}" events( ',end='')
+                events_strings=[str(event) for event in litter.litter_events()]
+                print(f'{', '.join(events_strings)} )')
             #print(f'Input choice number 0..{count} -1 to leave',end='')
             num=toy.get_one_digit_int(max=count)
             if num<0:
                 print('Bye')
                 return
             S[num].learn_tricks()
-
-# def check_mice_conected_and_on():
-#     while True:
-#         mice=catch_mice()
-#         mice.sort()
-#         listMice(mice=mice,short=True)
-#         if find_same_name_pub(mice):
-#             print('There are mice with the same name that will have to share'
-#                   ' the same configuration.')
-#         print(f'\nIf a device is not listed you can connect it or turn it on.')
-#         print('Than press "R" to repeat.')
-#         print('Any other key to continue.')
-#
-#         action=toy.get_a_user_char()
-#         if action.upper() != 'R':
-#             return mice
-#
-# def make_litters():
-#     kin=toy.family_reunion()
-#     litters=[Litter(sibs) for _,sibs in kin.items()]
-#     return litters
-#     #pinky_mouse.write_configuration_template()
-
-# def make_a_Pup()-> Litter | None:
-#     '''
-#     interactive config template file creation
-#     :return:
-#     :rtype:
-#     '''
-#     mouse_name,mouse_event=toy.catch_a_reacting_mouse()
-#     pinky_sys_no = trick.SysDevEvent().sys_mouse_of_event(mouse_event)
-#     pinky=Litter(pinky_sys_no)
-#     pinky.show(capabilities=True,short=False)
-#
-#     #sibs=pinky.get_siblings_by_id()
-#     sib_caps=[]
-#     for sib_name,sib_event in pinky.kin:
-#         if sib_event == pinky.event:
-#             # print(f'This i me "{sib_name}" {sib_event}')
-#             continue
-#         print(f'\tsib: "{sib_name} {sib_event:2d}')
-#         caps=trick.SibCapabilities(sib_event)
-#         if caps.has_ev_key():
-#             caps.show(tabs='\t\t')
-#         else:
-#             print ("\t\thas no key or button events.\n")
-#         sib_caps.append((sib_name,sib_event,caps))
-#
-#     if len(sib_caps) == 0:
-#         print(f'No sib devices found for "{pinky.name}"')
-#         return pinky
-#     print ('Use keys and or buttons of kin device(s)?')
-#     print ('"Q" or "D" = Quit Done, "N" = Non, "A" = all, "P" = make Placeholders,\n'
-#            '"S" or "I" = Select key/buttons Interactive.')
-#     choice = toy.get_a_user_char('qdnapis')
-#     if choice in "QD":
-#         return None
-#     if choice == "N":
-#         return pinky
-#     pinky.connect_with_kin=True
-#     if choice == 'A':
-#         for sib,event,caps in sib_caps:
-#             print(f'add: "{sib}"')
-#             pinky+=caps
-#         return pinky
-#     if choice == 'P':
-#         print ('Enter the number of placeholders')
-#         print ('0 or less to abort.')
-#         num=toy.input_a_number()
-#         if num > 0:
-#             pinky.add_placeholders(num)
-#         return pinky
-#     if choice in  'IS':
-#         pinky.learn_tricks()
-#         return pinky
-#     ic('this should not happen.')
 
 def listMice(capabilties=False,short=True,tabs='')->None:
     '''
@@ -294,6 +205,7 @@ def clean_test_dir():
 #         print(f'{litter}')
 
 def test_class_Tribes():
+    set_config_dir('./test_litter_config')
     tribes=Tribes()
     #listMice(capabilties=True,short=False)
     tribes.make_templates()

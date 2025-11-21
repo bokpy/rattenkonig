@@ -67,7 +67,7 @@ if __name__ == "__main__":
     mus.set_config_dir(args.configdir)
     if args.template:
         import litter
-        pup.set_config_dir(args.configdir)
+        litter.set_config_dir(args.configdir)
         litter.make_a_litter()
         exit(0)
 

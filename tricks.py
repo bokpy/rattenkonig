@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
 import time
+
+import evdev
 from evdev import InputDevice, categorize, ecodes as ec, list_devices
 from collections import defaultdict
 import glob
 import re
 import asyncio
 import atexit
+
+from pygments.lexer import combined
+
 import toys as toy
 from icecream import ic
 
@@ -13,11 +18,13 @@ DEBUG=print
 error_ic=ic
 #ic.configureOutput(prefix, outputFunction, argToStringFunction, includeContext, contextAbsPath)
 
-ic.configureOutput(prefix='Trick: ', includeContext=True)
+ic.configureOutput(includeContext=True)
 timeout=12
 
 _int=1
 _str=0
+
+
 
 '''
 dev.capabilities(verbose=True)
@@ -31,10 +38,25 @@ EL_WHEEL_HI_RES', 11), ('REL_HWHEEL_HI_RES', 12)],
  }
  '''
 
-class MouseCapabilities(dict):
-    def __init__(S):
+class CapabilityDict(dict):
+    event_type_set = (ec.EV_REL, ec.EV_KEY, ec.EV_LED)
+    def __init__(S,event_no=-1):
         super().__init__(S)
         S.placeholder_current_id=1025
+        for t in CapabilityDict.event_type_set:
+            S[t]={}
+        if event_no < 0:
+            return
+        device = evdev.InputDevice(toy.event_path(event_no))
+        caps=device.capabilities(verbose=True,absinfo=False)
+        device.close()
+        for ev_type,ev_list in caps.items():
+            ev_type_no=ev_type[_int]
+            if ev_type_no not in CapabilityDict.event_type_set:
+                continue
+            S[ev_type_no]= {
+                ev_code:toy.string_event_names(ec_name) for ec_name,ev_code in ev_list}
+        #ic(S)
 
     def add_placeholder_EV_KEY(S,placeholder):
         if not ec.EV_KEY in S:
@@ -44,19 +66,31 @@ class MouseCapabilities(dict):
         return S
 
     def __iadd__(S,O):
-        for event_type in O:
-            if event_type in S:
-                S[event_type].update(O[event_type])
-                continue
-            S[event_type]=O[event_type].copy()
+        for event_type in CapabilityDict.event_type_set:
+            S[event_type].update(O[event_type])
         return S
 
-    def add(S,ev_type,event_dict):
-        if ev_type in S:
-            S[ev_type].update(event_dict)
-            return S
-        S[ev_type]=event_dict
-        return S
+    # def add_inputdevice_capbilties(S,no):
+    #     temp = CapabilityDict(no)
+    #     return S.__iadd__(temp)
+
+    def add_all_but_keys(S,O)->dict[int,str]:
+        for event_type in CapabilityDict.event_type_set:
+            if event_type != ec.EV_KEY:
+                S[event_type].update(O[event_type])
+        keys={}
+        for key_button_code,mnemonic  in O[ec.EV_KEY].items():
+            if toy.is_BTN(key_button_code):
+                S[ec.EV_KEY].update({key_button_code:mnemonic})
+            elif  toy.is_KEY(key_button_code):
+                keys[key_button_code]=mnemonic
+        return keys
+
+    # def add_event(S,event:evdev.InputEvent):
+    #     if event.type not in CapabilityDict.event_type_set:
+    #         ic('not a acsepted event',event)
+    #         return S
+    #     S[event.type].update({event.code:toy.BTN_or_KEY_str(event.code)})
 
     def write_to_file(S,f,func_name_base='event',lower=True):
         #print(f'Writing "{S.zip.event_path}" to file')
@@ -67,40 +101,88 @@ class MouseCapabilities(dict):
                     func_name=func_name.lower()
                 f.write(func_name+'\n')
 
-    def show(S,name='',tabs=''):
-        #print(f'"{S.zip.event_path}" MouseCapabilities:')
+    def show(S,name='',tabs='',limit=26):
+        #print(f'"{S.zip.event_path}" CapabilityDict:')
         if name=='':
-            name=S.name
-        toy.simple_capablities_show(S,name,tabs+'\t' )
+            print(f'"{name}: "')
+        toy.simple_capablities_show(S,name,limit=limit,tabs=tabs+'\t' )
         return S
 
-# key press tasting
+def key_selection( events:[int] ) -> CapabilityDict:
+    '''
+    Selection of capabilities to handle by its family Litter
+    :return: dict{ecode:ecode_name}
+    :rtype: dict[int:str]
+    '''
+    def make_placeholders(capa_dict):
+        print('The Number of Placeholders you want <1 to quit',end='')
+        num=toy.get_an_integer()
+        if num < 1:
+            return
+        for i in range(1024 ,1024+num):
+            capa_dict[ec.EV_KEY].update({i:"Placeholder_"+str(i)})
+
+    toy.clear_screen()
+    no_keys_capabilities=CapabilityDict()
+    united_capabilities = CapabilityDict()
+    united_keys={}
+    pinkies_capabilities = [CapabilityDict(i) for i in events]
+    for pinky_capabilities in pinkies_capabilities:
+        pinky_keys = no_keys_capabilities.add_all_but_keys(pinky_capabilities)
+        united_capabilities+=pinky_capabilities
+        united_keys.update(pinky_keys)
+    toy.show_event_items(united_keys,80)
+    print(f'These are the keys that /dev/input/event {events} can produce.')
+    print(f'Use: N non, A all, P Placeholders, I,S Select Interactive, or Q,L,B,D quits', end='')
+    choise = toy.get_a_user_char('NAPIQSLBD')
+    if choise in 'QLBD':
+        return {}
+    if choise == 'N':
+        return {}
+    if choise == 'A':
+        return united_capabilities
+    if choise == 'P':
+        make_placeholders(no_keys_capabilities)
+        return no_keys_capabilities
+        # ic(ret)
+        # input()
+    if choise in 'IS':
+        test_CapabilityDict = button_tester(events)
+        no_keys_capabilities+=test_CapabilityDict
+        return no_keys_capabilities
+    return {}
+# key press testing
 grabed_devices=None
 key_events=[]
+stopper = 1
+previous_key_event = -1
 
-def atexit_ungrab():
+class TestEndExeption(Exception):
+    pass
+
+def ungrab_devices():
     global grabed_devices
     if not grabed_devices:
         return
     for device in grabed_devices:
         print(f'Ungrab: "{device.name}"')
         device.ungrab()
+        device.close()
+    grabed_devices=None
 
 async def read_device(dev):
-    global grabed_devices,key_events
-    stopper=2
-    previous_key_event=-1
-    key_events=[]
+    global grabed_devices,key_events,stopper,previous_key_event
 
     async for event in dev.async_read_loop():
         if event.type == ec.EV_KEY and event.value==1:
             if event.code == previous_key_event:
                 stopper-=1
                 if stopper < 0:
-                    raise Exception("Stop read device",798)
+                    #ic(stopper)
+                    raise TestEndExeption
                     #return key_events
             else:
-                stopper=2
+                stopper=1
                 previous_key_event=event.code
             if toy.is_BTN(event.code):
                 print(f'{ec.BTN[event.code]}')
@@ -114,138 +196,58 @@ async def run_tasks():
     tasks = [asyncio.create_task(read_device(d)) for d in grabed_devices]
     await asyncio.gather(*tasks)
 
-def button_tester(events:[int])-> dict[int, str]:
-    global grabed_devices,key_events
+def button_tester(events:[int])->CapabilityDict:
+    global grabed_devices,key_events,stopper,previous_key_event, key_events
+    stopper = 1
+    previous_key_event = -1
+    key_events = []
     print(f'Press all keys on the device.')
-    print(f'press the same key 3x when done.')
-    print(f'If there are no keystrokes detected the timeout is {timeout} sec.')
+    print(f'press the same key or button 3x when done.')
+    #print(f'If there are no keystrokes detected the timeout is {timeout} sec.')
     grabed_devices = [InputDevice(toy.event_path(event)) for event in events]
     for device in grabed_devices:
         device.grab()
-    atexit.register(atexit_ungrab)
+    atexit.register(ungrab_devices)
     try:
         asyncio.run(run_tasks())
-    except Exception as e:
-
+    except TestEndExeption as e:
         ic(e)
+    #    exit(112)
+    ungrab_devices()
+    atexit.unregister(ungrab_devices)
+    ret = CapabilityDict()
+    ret[ec.EV_KEY]={code:toy.BTN_or_KEY_str(code) for code in key_events}
+    return ret
 
-    for device in grabed_devices:
-        print(f'Tester Ungrab : {device.path} "{device.name}"')
-        device.ungrab()
-    atexit.unregister(atexit_ungrab)
-    grabed_devices=None
-    return key_events
+#testers
 
-#     for dev in devices : dev.grab()
-#
-#     '''
-# def button_tester(events:[int])-> dict[int, str]:
-#     '''
-#     Test which key events are generated by some of the mouse buttons.
-#
-#     :param events: list of event numbers to monitor
-#     :type events: list[int]
-#     :return: dict{event.code:ecodes.KEY}
-#     :rtype: dict[int, str]
-#     '''
-#     print(f'Press all keys on the device.')
-#     print(f'press the same key 3x when done.')
-#     print(f'If there are no keystrokes detected the timeout is {timeout} sec.')
-#
-#     last_key = -1
-#     stop_count = 2
-#     stop_time = time.time() + timeout
-#     occurrence_detected = False
-#     devices=[]
-#
-#     def stopper(test_event)->bool:
-#         """
-#         Test if the time is up and nothing happened or if
-#         the user pressed the same button 3 times
-#         :param event: evdev InputEvent
-#         :type event: InputEvent
-#         :return: True stop False continue
-#         :rtype: bool
-#         """
-#         nonlocal occurrence_detected,stop_time,stop_count,last_key
-#
-#         # there is no live sign from these devices check to timeout
-#         if not occurrence_detected and ( time.time() > stop_time):
-#                 print('Key press test timed out')
-#                 return True
-#         if not test_event:
-#             return False
-#         #if it was a key or button press test for the count out
-#         if (test_event.type == ec.EV_KEY) and test_event.value:
-#             #ic(stop_count,last_key,test_event.code)
-#             if last_key == test_event.code:
-#                 stop_count -= 1
-#                 ic(stop_count)
-#                 return stop_count <= 0
-#             # an other key was pressed restart the countdown
-#             last_key = test_event.code
-#             stop_count = 2
-#         return False
-#
-#     key_events={}
-#     tested_events=[]
-#     event_count = 0
-#
-#     def handle_event(event):
-#         nonlocal tested_events,occurrence_detected,event_count
-#         if not event or not event.value:
-#             return False
-#         all_test=all([event.type == ec.EV_KEY
-#                    ,toy.is_KEY(event.code)
-#                    ,not event.code in tested_events])
-#         ic(all_test)
-#         if all([event.type == ec.EV_KEY
-#                    ,toy.is_KEY(event.code)
-#                    ,not event.code in tested_events])  :
-#             if toy.is_KEY(event.code):
-#                 if not (event.code in tested_events):
-#                     event_name=toy.string_event_names(ec.KEY[event.code])
-#                     key_events[event.code]=event_name
-#                     tested_events.append(event.code)
-#                     toy.string_event_names(ec.KEY[event.code])
-#                     event_count+=1
-#                     print(f'{event_count:3d} [{event.code}:"{event_name}" detected.')
-#                 else:
-#                     print("#",end='')
-#             elif toy.is_BTN(event.code):
-#                 print("*",end='')
-#         return True
-#
-#     def ungrab_devices():
-#         nonlocal devices
-#         for dev in devices: dev.ungrab()
-#
-#     devices=[InputDevice(toy.event_path(event)) for event in events]
-#     for dev in devices : dev.grab()
-#
-#     while True:
-#         got_somthing=None
-#         for dev in devices:
-#             got_somthing = dev.read_one()
-#             if got_somthing:
-#                 occurrence_detected = True
-#                 print(f'{dev.name} {got_somthing}')
-#                 break
-#         handle_event(got_somthing)
-#         if stopper(got_somthing):
-#             ungrab_devices()
-#             return key_events
-#
-#     ungrab_devices()
-#     return key_eventsun
+def test_CapabilityDict_add_inputdevice_capbilties():
+    combined=CapabilityDict()
+    nokeys=CapabilityDict()
+    # capa17=CapabilityDict(17)
+    capas=[CapabilityDict(i) for i in (17, 18, 19, 20)]
+    keys={}
+    for d in capas:
+        combined+=d
+        k=nokeys.add_all_but_keys(d)
+        keys.update(k)
+    combined.show()
+    nokeys.show()
+    ic(keys)
+
+def test_key_selection():
+    united_capabilities= key_selection([17, 18, 19, 20])
+    united_capabilities.show()
 
 def test_button_tester():
     result = button_tester([17, 18, 19, 20])
     ic(result)
 
 def main():
-    test_button_tester()
-    #game_caps=MouseCapabilities(zip)
+    #test_CapabilityDict_add_inputdevice_capbilties()
+    test_key_selection()
+    #test_button_tester()
+    #game_caps=CapabilityDict(zip)
 
 
 if __name__ == "__main__":

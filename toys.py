@@ -30,7 +30,7 @@ def common_prefix_length(a,b):
         count +=1
     return count
 
-def input_a_number(message='Enter a Number',min=-100,max=100):
+def get_an_integer(message='Enter a Number', min=-100, max=100):
     while True:
         in_num=input(message + ' #: ' )
         try:
@@ -113,30 +113,30 @@ def get_mice_and_keyboards()->[int]:
             event_numbers.append(number)
     return event_numbers
 
-def catch_a_reacting_mouse()->tuple[str,int]:
-    '''
-    let the user move a mouse and return name and the event number.
-    :return: tuple[ device name, number of event ]
-    :rtype: tuple[str,int]
-    '''
-    print (f'Move a mouse or press a key to select a mouse or keyboard.')
-    ms=get_mice_and_keyboards()
-    devices=[evdev.InputDevice('/dev/input/event'+str(i)) for i in ms ]
-    for dev in devices:
-        dev.grab()
-
-    got_one=None
-    while not got_one:
-        for dev in devices:
-            got_something=dev.read_one()
-            if (got_something and
-                    ( got_something.type==ec.EV_REL or got_something.type==ec.EV_KEY)):
-                got_one=dev
-                break
-    #print(f'Caught Mouse {got_one}. ')
-    for dev in devices:
-        dev.ungrab()
-    return got_one.name,extract_at_end_int(got_one.path)
+# def catch_a_reacting_mouse()->tuple[str,int]:
+#     '''
+#     let the user move a mouse and return name and the event number.
+#     :return: tuple[ device name, number of event ]
+#     :rtype: tuple[str,int]
+#     '''
+#     print (f'Move a mouse or press a key to select a mouse or keyboard.')
+#     ms=get_mice_and_keyboards()
+#     devices=[evdev.InputDevice('/dev/input/event'+str(i)) for i in ms ]
+#     for dev in devices:
+#         dev.grab()
+#
+#     got_one=None
+#     while not got_one:
+#         for dev in devices:
+#             got_something=dev.read_one()
+#             if (got_something and
+#                     ( got_something.type==ec.EV_REL or got_something.type==ec.EV_KEY)):
+#                 got_one=dev
+#                 break
+#     #print(f'Caught Mouse {got_one}. ')
+#     for dev in devices:
+#         dev.ungrab()
+#     return got_one.name,extract_at_end_int(got_one.path)
 
 def string_event_names(event):
     """
@@ -266,8 +266,7 @@ def capablities_show(c,name='capabilities',tabs=''):
         type_events(events)
     print(f'{tabs}}}')
 
-def simple_capablities_show(c,name='capabilities',tabs='',event_types=None):
-    tops=16
+def simple_capablities_show(c,name='capabilities',tabs='',limit=16,event_types=None):
     print(f'{tabs}{name} = {{')
     for k,i in c.items():
         if event_types and not (k in event_types):
@@ -275,10 +274,10 @@ def simple_capablities_show(c,name='capabilities',tabs='',event_types=None):
         print(f'{tabs}\t{k:2d} {ec.EV[k]}: {{ ',end='')
         tail=''
         l = len(i)
-        if l> tops:
+        if l> limit:
             tail = f',... {l} in total.'
         comma=''
-        count = 6
+        count = limit
         for k2,i2 in i.items():
             #print(f'{comma}{k2}:"{i2}"',end='')
             print(f'{comma}"{i2}"', end='')
@@ -290,8 +289,10 @@ def simple_capablities_show(c,name='capabilities',tabs='',event_types=None):
     print(f'{tabs}\t}}')
 
 def make_config_dir(d):
+    # if d[-1:] != '/':
+    #     d=d+'/'
     if os.path.isdir(d):
-        return d
+        return os.path.abspath(d)+'/'
     try:
         os.makedirs(d)
     except Exception as e:
@@ -299,10 +300,12 @@ def make_config_dir(d):
         exit(1)
     try:
         with open(d + '__init__.py', 'w') as f:
-            return d
+            f.write('Rattenkonig Configuration\n')
     except Exception as e:
         ic(e)
         exit(1)
+    return os.path.abspath(d)+'/'
+
 
 def sanitize_filename(filename):
     # Remove spaces and punctuation using regex
@@ -319,6 +322,25 @@ def list_devices_with_name():
         input_no=int(re.search(r'\d+', path).group())
         name = read_top_line(path, 'name')
         print(f'input{input_no:<2} "{name}"')
+
+def show_event_items(event_items:dict[int,str],max_line_length):
+    if not event_items:
+        return
+    len_sorted=sorted(event_items.items(), key=lambda item: len(item[1]),reverse=True)
+    word_len = len(len_sorted[0][1])+1
+    prev_len=word_len
+    printed_len=word_len
+    for code,key_name in len_sorted:
+        if (printed_len + word_len) > max_line_length:
+            new_len = len(key_name)+1
+            if new_len < prev_len - 5:
+                prev_len = word_len = new_len
+            printed_len=word_len
+            print()
+        else:
+            printed_len+=word_len
+        print(f'{key_name.ljust(word_len,' ')}',end='')
+    print()
 
 #testers
 def test_get_one_digit_int():
