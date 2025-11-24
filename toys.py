@@ -2,19 +2,39 @@
 import os
 import glob
 from collections import defaultdict
-from tkinter.font import families
-
+from difflib import SequenceMatcher
 import evdev
 import re
 from evdev import ecodes as ec
 from click import getchar
 from icecream import ic
-from mouseTables import bus_type,event_types_by_name
+import ladders as ladder
 
 ic.configureOutput(includeContext=True)
 DEBUG=print
 _int=1
 _str=0
+
+def longestSubstring(strings:[str]):
+    #ic(strings)
+    if len(strings) == 0:
+        return ''
+    if len(strings) == 1:
+        return strings[0]
+        # initialize SequenceMatcher object with
+        # input string
+    longest=strings.pop()
+    while strings:
+        next=strings.pop()
+        seqMatch = SequenceMatcher(None, longest,next)
+        #ic(seqMatch)
+        # find match of longest sub-string
+        # output will be like Match(a=0, b=0, size=5)
+        match = seqMatch.find_longest_match(0, len(longest), 0, len(next))
+        if (match.size == 0):
+            return ''
+        longest=longest[match.a: match.a + match.size]
+    return longest
 
 def extract_first_int(s):
     return int(re.search(r'\d+', s).group())
@@ -87,14 +107,16 @@ def get_one_digit_int(min=0,max=9):
         return -1
     return int(choice)
 
-def event_print(event):
-    _timestamp = event.timestamp()
-    _type           = event.type
-    _sec            = event.sec
-    _usec          = event.usec
-    _value         = event.value
-    _code         = event.code
-    print(f'"code{_code}" "{_sec}sec" "stamp:{_timestamp}" "type:{_type}" "{_usec}usec" "value:{_value}"')
+def str_event(event):
+    # _timestamp = event.timestamp()
+    # _type           = event.type
+    # _sec            = event.sec
+    # _usec          = event.usec
+    # _value         = event.value
+    # _code         = event.code
+    str_type=ladder.ev_type_no_to_str[event.type]
+    str_code=ladder.ev_type_code_no_to_str[event.type][event.code]
+    return f'{str_type},{str_code},{event.value}'
 
 def get_mice_and_keyboards()->[int]:
     '''
@@ -349,8 +371,18 @@ def test_get_one_digit_int():
         choise = get_one_digit_int(4,8)
         print(f'{choise=}')
 
+def test_longestSubstring():
+    test_strings=["usb-1ea7_2.4G_Mouse-event-kbd"
+    ,"usb-1ea7_2.4G_Mouse-if01-event-mouse"
+    ,"usb-1ea7_2.4G_Mouse-event-if01"
+    ,"2.4G_Mouse"
+    ,"2.4G_Mouse_System_Control"
+    ]
+    print (longestSubstring(test_strings))
+
 def main(argv: list[str] | None = None) -> int:
-     test_get_one_digit_int()
+    test_longestSubstring()
+    # test_get_one_digit_int()
 
 if __name__ == "__main__":
     main()

@@ -1,8 +1,14 @@
 #!/usr/bin/python3
-"""
-Create a virtual Uinput device to send (modified) events form
-the real mouse devices
-"""
+from evdev import UInput, ecodes as ec, AbsInfo
+import atexit
+import time
+from Xlib import display
+
+import ladders as ladder
+import toys as toy
+from icecream import ic
+ic.configureOutput(includeContext=True)
+
 help_text="""
 ChatGPT:
 
@@ -35,11 +41,8 @@ Notes
 • After these steps log out and back in (or reboot) so group membership takes effect.
 
 Justness estimate: 92% — typical on most Linux distributions using udev.
+
 """
-from evdev import UInput,ecodes as ec
-import atexit
-import time
-from Xlib import display
 
 def get_focused_window():
     """
@@ -65,23 +68,21 @@ def get_window_info(window):
         return [0,None,None,None]
     return [window,window.get_wm_name()] + list(window.get_wm_class())
 
+caps={ec.EV_KEY:ladder.ev_key_codes,ec.EV_REL:ladder.ev_rel_codes}
 class MouseKing(UInput):
     """class writing the mouse and keyboard events"""
     the_king=None
 
     def __init__(S):
-        """a new uinput"""
         if MouseKing.the_king:
             print(f'Only one mouse can bee the King')
-            exit(1)
+            exit(666)
         try:
-            UInput.__init__(S,name="Ratoncito Perez",vendor=0xb0b0,version=0xbbb)
-            #UInput.__init__(S) #, name="Ratoncito Perez", vendor=0xb0b0, version=0xbbb)
+            super().__init__(caps,name="Ratoncito Perez")
             atexit.register(S.abdicate_crown)
         except PermissionError as e:
             print(help_text)
             exit (e.errno)
-
         MouseKing.the_king=S
         S.pressed_keys=None
 
@@ -89,43 +90,54 @@ class MouseKing(UInput):
         S.close()
         print(f'Royal highness "{S.name}" abdicated.')
 
-    def squeak(S,event):
-        print(f'King squeak got {event}')
+    def report_move(S,ev_code,ev_value):
+        #print('-',end='',flush=True)
+        S.write(ec.EV_REL,ev_code,ev_value)
+        S.syn()
+        S.syn_report()
+
+    def syn_report(S):
+        S.write(ec.EV_SYN,ec.SYN_REPORT,0)
+
+    def squeak_event(S,event):
+        #print(f'King squeak got {event}')
         S.write_event(event)
+        S.syn()
+
+    def squeak_code(S,ev_type,ev_code,ev_value):
+        S.write(ev_type,ev_code,ev_value)
         S.syn()
 
     def default(S,event):
-        #print(".",end='',flush=True)
-        S.squeak(event)
+        print(toy.str_event(event))
+        #S.write_event(event)
 
     def hold_keys(S,house_mouse_id:int,keys:[int])-> None:
+        pass
         # no hold keys pressed just press
-        if not S.pressed_keys_owner:
-            S.pressed_keys_owner = house_mouse_id
-            S.press_keys(keys)
-            return
-        # an other mouse pressed the keys before so release them ad press what this mouse requests
-        if S.pressed_keys_owner != house_mouse_id:
-            S.realese_keys()
-            S.hold_keys(house_mouse_id,keys)
-            return
-        # the pressed keys belong to the still active mouse
-        if S.pressed_keys == keys: # no changes return
-            return
-        S.realese_keys()
-        S.hold_keys(house_mouse_id,keys)
+        # if not S.pressed_keys_owner:
+        #     S.pressed_keys_owner = house_mouse_id
+        #     S.press_keys(keys)
+        #     return
+        # # an other mouse pressed the keys before so release them ad press what this mouse requests
+        # if S.pressed_keys_owner != house_mouse_id:
+        #     S.realese_keys()
+        #     S.hold_keys(house_mouse_id,keys)
+        #     return
+        # # the pressed keys belong to the still active mouse
+        # if S.pressed_keys == keys: # no changes return
+        #     return
+        # S.realese_keys()
+        # S.hold_keys(house_mouse_id,keys)
 
     def realese_keys(S):
-        for key in S.pressed_keys:
-            print(f'realese key[{key}]')
-            S.w
-        S.pressed_keys=[]
-        S.pressed_keys_owner=None
+        pass
+        # for key in S.pressed_keys:
+        #     print(f'realese key[{key}]')
+        #
+        # S.pressed_keys=[]
+        # S.pressed_keys_owner=None
 
-    def write_happening(S,event)->None:
-        print(f'MouseKing.write: {event}')
-        S.write_event(event)
-        S.syn()
 
 # accepts only KEY_* events by default
 # ui.write(e.EV_KEY, e.KEY_A, 1)  # KEY_A down
@@ -133,11 +145,28 @@ class MouseKing(UInput):
 # ui.syn()
 #ui.close
 
+def test_the_king():
+    king=MouseKing()
+    #print(king.capabilities())
+    for i in range(1,20):
+        king.squeak_code(ec.EV_KEY, ec.KEY_1+i, 1)
+        king.squeak_code(ec.EV_KEY, ec.KEY_1+i, 0)
+        time.sleep(.3)
+
+    dirx=10
+    diry=16
+    for i in range(1,220):
+        if i % 30 == 0:
+            dirx=-dirx
+        if i % 80 == 0:
+            diry=-diry
+        king.report_move( ec.REL_X, dirx)
+        king.report_move( ec.REL_Y, diry)
+        time.sleep(.3)
+    #second_king=MouseKing()
+
 def main():
-    spirit=MouseKing()
-    #king2=MouseKing()
-    time.sleep(10)
-    # spirit.close()
+    test_the_king()
 
 if __name__=='__main__':
     main()

@@ -3,6 +3,7 @@ import time
 
 import evdev
 from evdev import InputDevice, categorize, ecodes as ec, list_devices
+from ladders import ev_types
 from collections import defaultdict
 import glob
 import re
@@ -39,21 +40,25 @@ EL_WHEEL_HI_RES', 11), ('REL_HWHEEL_HI_RES', 12)],
  '''
 
 class CapabilityDict(dict):
-    event_type_set = (ec.EV_REL, ec.EV_KEY, ec.EV_LED)
+    #event_type_set = (ec.EV_REL, ec.EV_KEY, ec.EV_LED)
     def __init__(S,event_no=-1):
         super().__init__(S)
         S.placeholder_current_id=1025
-        for t in CapabilityDict.event_type_set:
+        for t in ev_types:
             S[t]={}
         if event_no < 0:
             return
         device = evdev.InputDevice(toy.event_path(event_no))
         caps=device.capabilities(verbose=True,absinfo=False)
         device.close()
+        # translate:
+        # capabilities(verbose=True) dict to
+        # CapabilityDict={EV_TYPE:{EV_CODE:"EV_CODE"}
+        # if the "EV_CODE" is a list the first name is used.
         for ev_type,ev_list in caps.items():
             ev_type_no=ev_type[_int]
-            if ev_type_no not in CapabilityDict.event_type_set:
-                continue
+            # if ev_type_no not in CapabilityDict.event_type_set:
+            #     continue
             S[ev_type_no]= {
                 ev_code:toy.string_event_names(ec_name) for ec_name,ev_code in ev_list}
         #ic(S)
@@ -66,7 +71,7 @@ class CapabilityDict(dict):
         return S
 
     def __iadd__(S,O):
-        for event_type in CapabilityDict.event_type_set:
+        for event_type in ev_types:
             S[event_type].update(O[event_type])
         return S
 
@@ -75,7 +80,7 @@ class CapabilityDict(dict):
     #     return S.__iadd__(temp)
 
     def add_all_but_keys(S,O)->dict[int,str]:
-        for event_type in CapabilityDict.event_type_set:
+        for event_type in ev_types:
             if event_type != ec.EV_KEY:
                 S[event_type].update(O[event_type])
         keys={}
@@ -136,9 +141,9 @@ def key_selection( events:[int] ) -> CapabilityDict:
     print(f'Use: N non, A all, P Placeholders, I,S Select Interactive, or Q,L,B,D quits', end='')
     choise = toy.get_a_user_char('NAPIQSLBD')
     if choise in 'QLBD':
-        return {}
+        return CapabilityDict()
     if choise == 'N':
-        return {}
+        return no_keys_capabilities
     if choise == 'A':
         return united_capabilities
     if choise == 'P':
@@ -150,7 +155,8 @@ def key_selection( events:[int] ) -> CapabilityDict:
         test_CapabilityDict = button_tester(events)
         no_keys_capabilities+=test_CapabilityDict
         return no_keys_capabilities
-    return {}
+    return CapabilityDict()
+
 # key press testing
 grabed_devices=None
 key_events=[]

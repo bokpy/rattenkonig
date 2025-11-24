@@ -11,7 +11,7 @@ from click import getchar
 from icecream import ic
 
 import tricks as trick
-from mouseTables import bus_type,event_types_by_name
+from ladders import bus_type,event_types_by_name
 
 ic.configureOutput(includeContext=True)
 DEBUG=print

@@ -28,7 +28,9 @@ class Litter(trick.CapabilityDict):
             exit(234)
         trick.CapabilityDict.__init__(S)
         S.pups=pups
-        S.name = toy.sanitize_filename(pups[0].name)
+        names=[pup.by_id_name for pup in pups]
+        name=toy.longestSubstring(names)
+        S.name = toy.sanitize_filename(name)
         S.file_path = config_dir + S.name +'.py'
         ic(S.file_path)
 
@@ -92,7 +94,8 @@ class Litter(trick.CapabilityDict):
 
     def write_sibling(S,f):
         kin = [ pup.by_id_name for pup in S.pups ]
-        f.write(f'sibs = [ {', '.join(kin)} ]\n')
+        f.write(f'tag = {hex(S.pups[0].tag)}\n')
+        f.write(f'sibs = [ "{'", "'.join(kin)}"]\n')
 
     def function_name(S,event_str,event_no):
         global function_name_stam
@@ -179,10 +182,10 @@ def listMice(capabilties=False,short=True,tabs='')->None:
     :param capabilities: print the capabilities for each mouse
     :type capabilities: bool
     :param short: print name and event_no
-    :type short: bool
     :return: None
     :rtype:   None
     '''
+    set_config_dir('.')
     tribes=Tribes()
     for tribe in tribes:
         if short:

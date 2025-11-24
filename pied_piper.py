@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 import asyncio, evdev
 import asyncio
-from evdev import InputDevice, categorize, ecodes, list_devices
+from evdev import InputDevice, categorize, ecodes as ec, list_devices
 import toys as toy
-import musculus as mus
+import troupe as act
 import mouseOptions
 import atexit
 args = mouseOptions.parser.parse_args()
@@ -12,51 +12,83 @@ import json
 
 ic.configureOutput(includeContext=True)
 DEBUG=print
-event_to_mouse={}
-mus_devices=[]
+fd_to_troupe={}
+troupe_devices=[]
 event_paths=[]
 
+stopper_limit = 5
+stopper_count = stopper_limit
+
+class CloseCircus(Exception):
+    pass
+
+def check_alarm( event):
+    global stopper_count, stopper_limit
+
+    if event.type == ec.EV_KEY and event.value == 1:
+        if event.code == ec.BTN_LEFT:
+            stopper_count -= 1
+            print(f'{stopper_count=}')
+            if stopper_count < 0:
+                ic('stopped by repeated Left Button presses.')
+                raise CloseCircus
+        else:
+            stopper_count = stopper_limit
+
 def ungrab_devices():
-    global mus_devices
-    for dev in mus_devices:
+    global troupe_devices
+    print('\nMouse sabbatical')
+    for dev in troupe_devices:
         print (f'Free "{dev.name}"')
         dev.ungrab()
-
-atexit.register(ungrab_devices)
-
-def population_buildup():
-    global event_to_mouse,mus_devices
-    musculus_mice = mus.get_population()
-    for mouse in musculus_mice:
-        for event in mouse.events():
-            mus_event_path=toy.event_path(event)
-            dev=InputDevice(mus_event_path)
-            dev.grab()
-            mus_devices.append(dev)
-            print(f'{mouse} {type(mouse)}')
-            event_to_mouse[mus_event_path[-3:]]=mouse
-    #ic(event_to_mouse)
-    # for d in mus_devices:
-    #     print(f"Found: {d.path} ({d.name})")
+        dev.close()
 
 fired = '"pied Piper" you are fired'
 async def read_device(dev):
-    global event_to_mouse,mus_devices,fired
+    global fd_to_troupe,troupe_devices,fired
     try:
         async for event in dev.async_read_loop():
-            exited_mouse = event_to_mouse[dev.path[-3:]]
-            #print(f'{exited_mouse.name}')
-            # ic(func)
-            exited_mouse.event_action(event)
+            if event.code == ec.BTN_LEFT:
+                check_alarm(event)
+            fd_to_troupe[dev.fd].magic_tricks[event.type][event.code](event)
+
     except asyncio.exceptions.CancelledError as e:
         pass
+    except CloseCircus:
+        print("Mouse Circus was Closed.")
+        raise
     print(f'{fired}', end='', flush=True)
     fired = ' go'
 
-async def main():
-    global event_to_mouse,mus_devices
-    tasks = [asyncio.create_task(read_device(d)) for d in mus_devices]
-    await asyncio.gather(*tasks)
+async def main_runner():
+    global fd_to_troupe,troupe_devices
+    #ic(troupe_devices)
+    tasks = [asyncio.create_task(read_device(d)) for d in troupe_devices]
+    try:
+        await asyncio.gather(*tasks)
+    except CloseCircus:
+        print("Circus Got Closed return from async def main_runner()")
+        return
+
+def main():
+    global  troupe_devices,fd_to_troupe
+    circus=act.MouseCircus()
+    troupe_devices=[]
+    fd_to_troupe={}
+    for ensemble in circus:
+        if not ensemble.is_preforming():
+            continue
+        for mouse in ensemble.actors():
+            device=evdev.InputDevice(toy.event_path(mouse.event))
+            device.grab()
+            troupe_devices.append(device)
+            fd_to_troupe[device.fd]=ensemble
+    atexit.register(ungrab_devices)
+    try:
+        asyncio.run(main_runner())
+    except Exception as e:
+        print('asyncio.run(main_runner()) done')
+        ic(e)
 
 if __name__ == "__main__":
     if args.list:
@@ -64,17 +96,13 @@ if __name__ == "__main__":
         litter.listMice(short=not args.verbose)
         exit(0)
 
-    mus.set_config_dir(args.configdir)
+    act.set_config_dir(args.configdir)
     if args.template:
         import litter
         litter.set_config_dir(args.configdir)
-        litter.make_a_litter()
+        tribes=litter.Tribes()
+        tribes.make_templates()
         exit(0)
+    main()
 
-    population_buildup()
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt as e:
-        print('.')
-        print(f'KeyboardInterrupt')
 
