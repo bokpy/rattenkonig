@@ -61,7 +61,7 @@ class Litter(trick.CapabilityDict):
         print(f'{tabs}Litter("{S.name}")')
         if not short:
             for pup in S.pups:
-                print(f'{tabs}\t{pup}')
+                print(f'{tabs}    {pup}')
         if capabilities:
             trick.CapabilityDict.show(S,name= S.name,limit=24)
 
@@ -86,10 +86,11 @@ class Litter(trick.CapabilityDict):
         # S.naw_to_file(f)
         f.write('\n')
         f.write(f'import evdev\n')
+        f.write(f'from evdev import ecodes as ec\n')
         f.write(f'import king\n')
         f.write(f'import Xlib\n')
         f.write('\n')
-        f.write(f'king=None\n')
+        f.write(f'sire=None\n')
         f.write(f'display=None\n')
 
     def write_sibling(S,f):
@@ -103,16 +104,20 @@ class Litter(trick.CapabilityDict):
             return function_name_stam + str(event_no)
         return function_name_stam + event_str.lower()
 
-    def write_function(S,f,event_name,event_no):
+    def write_function(S,f,ev_key,event_name,event_no):
         f.write(f'\ndef {S.function_name(event_name,event_no)}(event): # code {event_no}\n')
-        f.write('\tglobal king,display\n')
-        f.write(f'\tking.default(event)\n')
+        f.write('    global sire,display\n')
+        if ev_key== ec.EV_KEY or ev_key==ec.EV_REL:
+            f.write(f'    sire.write_event(event)\n')
+            return
+        f.write(f'    pass\n')
+        f.write(f'    #sire.write_event(event)\n')
 
     def write_functions(S,f):
         f.write('\n')
         for ev_key,ev_events in S.items():
             for event_number,event_name in ev_events.items():
-                S.write_function(f,event_name,event_number)
+                S.write_function(f,ev_key,event_name,event_number)
 
     def write_event_lookup(S,f):
         def write_events(event_dict):
@@ -120,9 +125,9 @@ class Litter(trick.CapabilityDict):
              comma=' '
              for event_number,event_name in event_dict.items():
                  #ic(event_number,event_name)
-                 f.write(f'\t{comma}{event_number:3d}:{S.function_name(event_name,event_number)}\n')
+                 f.write(f'    {comma}{event_number:3d}:{S.function_name(event_name,event_number)}\n')
                  comma=','
-             f.write(f'\t}}\n')
+             f.write(f'    }}\n')
         f.write(f'\nevent_lookup = {{\n')
         comma=' '
         for ev_type in S:
@@ -166,7 +171,7 @@ class Tribes(list):
             print(f'Make a configuration for one or more of these device(s)')
             for litter in S:
                 count+=1
-                print(f'\t<{count}> "{litter.name}" events( ',end='')
+                print(f'    <{count}> "{litter.name}" events( ',end='')
                 events_strings=[str(event) for event in litter.litter_events()]
                 print(f'{', '.join(events_strings)} )')
             #print(f'Input choice number 0..{count} -1 to leave',end='')

@@ -24,16 +24,15 @@ class CloseCircus(Exception):
 
 def check_alarm( event):
     global stopper_count, stopper_limit
-
-    if event.type == ec.EV_KEY and event.value == 1:
-        if event.code == ec.BTN_LEFT:
-            stopper_count -= 1
-            print(f'{stopper_count=}')
-            if stopper_count < 0:
-                ic('stopped by repeated Left Button presses.')
-                raise CloseCircus
-        else:
-            stopper_count = stopper_limit
+    if event.code != ec.BTN_LEFT:
+        stopper_count = stopper_limit
+        return
+    if event.code == ec.BTN_LEFT and event.value == 1:
+        stopper_count -= 1
+        print(f'{stopper_count=}')
+        if stopper_count < 0:
+            ic('stopped by repeated Left Button presses.')
+            raise CloseCircus
 
 def ungrab_devices():
     global troupe_devices
@@ -48,14 +47,18 @@ async def read_device(dev):
     global fd_to_troupe,troupe_devices,fired
     try:
         async for event in dev.async_read_loop():
-            if event.code == ec.BTN_LEFT:
+            if event.type == ec.EV_KEY:
                 check_alarm(event)
+
             fd_to_troupe[dev.fd].magic_tricks[event.type][event.code](event)
 
     except asyncio.exceptions.CancelledError as e:
         pass
+    except KeyError as e:
+        print(f'{dev.fd=} {toy.str_event(event)}')
+        raise
     except CloseCircus:
-        print("Mouse Circus was Closed.")
+        print("Mouse Circus was Closed.}")
         raise
     print(f'{fired}', end='', flush=True)
     fired = ' go'

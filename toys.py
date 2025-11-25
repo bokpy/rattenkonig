@@ -2,11 +2,13 @@
 import os
 import glob
 from collections import defaultdict
+from click import getchar
 from difflib import SequenceMatcher
 import evdev
 import re
 from evdev import ecodes as ec
-from click import getchar
+
+
 from icecream import ic
 import ladders as ladder
 

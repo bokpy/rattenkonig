@@ -46,7 +46,7 @@ class MouseTroupe:
         S.events=[]
         if S.magic_tricks:
             S.events = [mouse.event for mouse in S.mice]
-        ic(S.events)
+        #ic(S.events)
 
         #ic(S.file_path)
     def is_preforming(S):
@@ -64,7 +64,7 @@ class MouseTroupe:
             return
         print(f'Config: "{S.file_path}" found.\n')
         S.magic_tricks = config.event_lookup
-        config.king = MouseKing.the_king
+        config.sire = MouseKing.the_king
 
 
     # def do_magic(S,event):

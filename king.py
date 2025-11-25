@@ -3,12 +3,13 @@ from evdev import UInput, ecodes as ec, AbsInfo
 import atexit
 import time
 from Xlib import display
-
 import ladders as ladder
+from ladders import ascii_to_evdev as asc2ev
 import toys as toy
 from icecream import ic
 ic.configureOutput(includeContext=True)
-
+lschift=shift=42
+rshift=54
 help_text="""
 ChatGPT:
 
@@ -43,6 +44,13 @@ Notes
 Justness estimate: 92% — typical on most Linux distributions using udev.
 
 """
+
+def is_iterable(obj):
+    try:
+        iter(obj)
+        return True
+    except TypeError:
+        return False
 
 def get_focused_window():
     """
@@ -103,6 +111,7 @@ class MouseKing(UInput):
         #print(f'King squeak got {event}')
         S.write_event(event)
         S.syn()
+        return S
 
     def squeak_code(S,ev_type,ev_code,ev_value):
         S.write(ev_type,ev_code,ev_value)
@@ -112,32 +121,35 @@ class MouseKing(UInput):
         print(toy.str_event(event))
         #S.write_event(event)
 
-    def hold_keys(S,house_mouse_id:int,keys:[int])-> None:
-        pass
-        # no hold keys pressed just press
-        # if not S.pressed_keys_owner:
-        #     S.pressed_keys_owner = house_mouse_id
-        #     S.press_keys(keys)
-        #     return
-        # # an other mouse pressed the keys before so release them ad press what this mouse requests
-        # if S.pressed_keys_owner != house_mouse_id:
-        #     S.realese_keys()
-        #     S.hold_keys(house_mouse_id,keys)
-        #     return
-        # # the pressed keys belong to the still active mouse
-        # if S.pressed_keys == keys: # no changes return
-        #     return
-        # S.realese_keys()
-        # S.hold_keys(house_mouse_id,keys)
+    def press_and_hold(S,keys):
+        if not is_iterable(keys):
+            keys=[keys]
+        for key in keys:
+            S.write(ec.EV_KEY,key,1)
+        S.syn()
+        return S
 
-    def realese_keys(S):
-        pass
-        # for key in S.pressed_keys:
-        #     print(f'realese key[{key}]')
-        #
-        # S.pressed_keys=[]
-        # S.pressed_keys_owner=None
+    def release(S,keys):
+        if not is_iterable(keys):
+            keys=[keys]
+        for key in keys:
+            S.write(ec.EV_KEY,key,0)
+        S.syn()
+        return S
 
+    def message(S,s):
+        ic(s)
+        return S
+        for c in s:
+            code,shift = asc2ev[c]
+            if shift:
+                S.write(ec.EV_KEY,shift,1)
+            S.write(ec.EV_KEY,code,1)
+            S.write(ec.EV_KEY,code,0)
+            if shift:
+                S.write(ec.EV_KEY,shift,0)
+            S.syn()
+        return S
 
 # accepts only KEY_* events by default
 # ui.write(e.EV_KEY, e.KEY_A, 1)  # KEY_A down
