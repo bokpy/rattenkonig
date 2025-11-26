@@ -8,8 +8,9 @@ from ladders import ascii_to_evdev as asc2ev
 import toys as toy
 from icecream import ic
 ic.configureOutput(includeContext=True)
-lschift=shift=42
-rshift=54
+KEYDELAY=.01
+L_SHIFT=SHIFT=42
+R_SHIFT=54
 help_text="""
 ChatGPT:
 
@@ -119,14 +120,36 @@ class MouseKing(UInput):
 
     def default(S,event):
         print(toy.str_event(event))
-        #S.write_event(event)
+
+    def juggle_keys(S,keys):
+        # Press all keys
+        for key_code in keys:
+            S.write(ec.EV_KEY, key_code, 1)  # Key down
+            S.write(ec.EV_SYN, ec.SYN_REPORT, 0)
+            time.sleep(KEYDELAY)
+        # Release all keys
+        for key_code in keys:
+            S.write(ec.EV_KEY, key_code, 0)  # Key up
+            S.write(ec.EV_SYN, ec.SYN_REPORT, 0)
+            time.sleep(KEYDELAY)
+        return  S
+
+    def type_key(S,key):
+        S.write(ec.EV_KEY,key,1)
+        S.write(ec.EV_SYN, ec.SYN_REPORT, 0)
+        time.sleep(KEYDELAY)
+        S.write(ec.EV_KEY,key,0)
+        S.write(ec.EV_SYN, ec.SYN_REPORT, 0)
+        time.sleep(KEYDELAY)
 
     def press_and_hold(S,keys):
         if not is_iterable(keys):
             keys=[keys]
         for key in keys:
             S.write(ec.EV_KEY,key,1)
-        S.syn()
+            S.write(ec.EV_SYN, ec.SYN_REPORT, 0)
+            #time.sleep(KEYDELAY)
+        #S.syn()
         return S
 
     def release(S,keys):
@@ -134,28 +157,29 @@ class MouseKing(UInput):
             keys=[keys]
         for key in keys:
             S.write(ec.EV_KEY,key,0)
-        S.syn()
+            S.write(ec.EV_SYN, ec.SYN_REPORT, 0)
+        #time.sleep(KEYDELAY)
+        #S.syn()
         return S
 
     def message(S,s):
-        ic(s)
-        return S
         for c in s:
-            code,shift = asc2ev[c]
+            code,shift = asc2ev[ord(c)]
             if shift:
-                S.write(ec.EV_KEY,shift,1)
-            S.write(ec.EV_KEY,code,1)
-            S.write(ec.EV_KEY,code,0)
-            if shift:
-                S.write(ec.EV_KEY,shift,0)
-            S.syn()
+                S.juggle_keys([SHIFT,code])
+                continue
+            S.type_key(code)
+        return S
+
+    def nap(S,snooze=KEYDELAY):
+        time.sleep(snooze)
         return S
 
 # accepts only KEY_* events by default
 # ui.write(e.EV_KEY, e.KEY_A, 1)  # KEY_A down
 # ui.write(e.EV_KEY, e.KEY_A, 0)  # KEY_A up
 # ui.syn()
-#ui.close
+#ui.closedef
 
 def test_the_king():
     king=MouseKing()
@@ -177,8 +201,16 @@ def test_the_king():
         time.sleep(.3)
     #second_king=MouseKing()
 
+def test_message():
+    king=MouseKing()
+    time.sleep(3)
+    print('Message Start:')
+    king.message('Hello World!')
+    print('Message End:')
+
 def main():
-    test_the_king()
+    #test_the_king()
+    test_message()
 
 if __name__=='__main__':
     main()

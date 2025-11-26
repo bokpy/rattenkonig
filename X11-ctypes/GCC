@@ -1,0 +1,8 @@
+#!/bin/bash
+if [ "$1" == "" ]; then
+echo "$0 expects one argument."
+exit 1
+fi
+
+gcc -fPIC -shared -o "$1".so "$1".c -lX11
+#gcc -fPIC -shared file.c -o file.so -lX11 -lXext
