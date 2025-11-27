@@ -10,6 +10,7 @@ xqp_wrapper.h
 typedef unsigned long Window;
 
 void _copy_string(void* dest,void* source, int length );
+void _clean_copy_string(void* output,void* input) ;
 //int xqp_is_this_the_mouse_window(Window);
 Window xqp_init();
 int xqp_show(Window win);

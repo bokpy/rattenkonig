@@ -18,20 +18,21 @@ event_paths=[]
 
 stopper_limit = 5
 stopper_count = stopper_limit
+stopper_key=ec.BTN_MIDDLE
 
 class CloseCircus(Exception):
     pass
 
 def check_alarm( event):
     global stopper_count, stopper_limit
-    if event.code != ec.BTN_LEFT:
+    if event.code != stopper_key:
         stopper_count = stopper_limit
         return
-    if event.code == ec.BTN_LEFT and event.value == 1:
+    if event.code == stopper_key and event.value == 1:
         stopper_count -= 1
         print(f'{stopper_count=}')
         if stopper_count < 0:
-            ic('stopped by repeated Left Button presses.')
+            ic('stopped by repeated Middle Button presses.')
             raise CloseCircus
 
 def ungrab_devices():
@@ -99,6 +100,10 @@ if __name__ == "__main__":
         litter.listMice(short=not args.verbose)
         exit(0)
 
+    if args.windows:
+        from tracer import show_pointed_windows
+
+
     act.set_config_dir(args.configdir)
     if args.template:
         import litter
@@ -106,6 +111,7 @@ if __name__ == "__main__":
         tribes=litter.Tribes()
         tribes.make_templates()
         exit(0)
+
     main()
 
 

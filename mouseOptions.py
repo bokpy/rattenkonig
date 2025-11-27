@@ -34,7 +34,11 @@ parser.add_argument('-t', '--template',
                     action='store_true'
                     )
 
-
+parser.add_argument('-w', '--windows',
+                    help='Print the window_name, class_name, class_class of the '
+                         'windows hovered bij the mouse'
+                    ,action='store_true'
+                    )
 def main():
     args = parser.parse_args()
     print(args)

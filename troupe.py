@@ -14,7 +14,7 @@ from evdev import ecodes as ec,categorize
 #import json
 #from collections import defaultdict
 from icecream import ic
-from king import MouseKing
+from piper import PiedPiper
 import pinky as pink
 from tricks import  CapabilityDict
 from ladders import event_types_by_number
@@ -64,7 +64,7 @@ class MouseTroupe:
             return
         print(f'Config: "{S.file_path}" found.\n')
         S.magic_tricks = config.event_lookup
-        config.sire = MouseKing.the_king
+        config.piper= PiedPiper.piper
 
 
     # def do_magic(S,event):
@@ -88,9 +88,9 @@ class MouseCircus(list):
 
     def __init__(S):
         super().__init__(S)
-        # first crown a king
-        global king
-        king=MouseKing()
+        # first call for the Pied Piper
+        global piper
+        piper=PiedPiper()
         troupes=pink.family_reunion()
         #ic(troupes)
         for number,pinkies in troupes.items():

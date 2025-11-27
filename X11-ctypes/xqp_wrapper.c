@@ -7,7 +7,7 @@
 
 //#define PRINTF(...) printf(__VA_ARGS__)
 #define PRINTF(...)
-#define MAX_STRING_LENGTH 64
+#define MAX_STRING_LENGTH 254
 #define TRUE 1
 #define FALSE 0
 //#define __MAIN__
@@ -133,11 +133,15 @@ int xqp_get_name_and_class(
    class_class[0]=0;
 
    if (XGetWMName(display, win, &xtext_prop)) {
-       _copy_string(name,xtext_prop.value,xtext_prop.nitems);
+       //_copy_string(name,xtext_prop.value,xtext_prop.nitems);
+       _clean_copy_string(name,xtext_prop.value);
       }
    if (XGetClassHint(display, win, x_class_hint_ptr)) {
-      _copy_string(class_name,  x_class_hint_ptr->res_name,sizeof(x_class_hint_ptr->res_name));
-      _copy_string(class_class,x_class_hint_ptr->res_class,sizeof(x_class_hint_ptr->res_class));
+//      _copy_string(class_name,  x_class_hint_ptr->res_name,sizeof(x_class_hint_ptr->res_name));
+//      _copy_string(class_class,x_class_hint_ptr->res_class,sizeof(x_class_hint_ptr->res_class));
+      _clean_copy_string(class_name,  x_class_hint_ptr->res_name);
+      _clean_copy_string(class_class,x_class_hint_ptr->res_class);
+
       PRINTF ("       name \"%s\"\n",name);
       PRINTF (" class_name \"%s\"\n",class_name);
       PRINTF ("class_class \"%s\"\n",class_class);
@@ -156,19 +160,24 @@ void _copy_string(void* dest,void *source, int length ) {
    memcpy(dest,source,length);
    }
 
+void _clean_copy_string(void* output,void* input) {
+    char* out=(char*)output;
+    char* inp=(char*)input;
+    while (*inp) {
+        if (*inp < 0) {
+            // Skip toutputhe escape sequence
+              inp ++; // Skip non ascii
+        } else {
+           *(out++) =*(inp++);
+        }
+    }
+   *out = '\0'; // Null-terminate the output string
+}
 
 int find_active_window() {
   Window root;
   Atom active_window_atom;
   Window active_window;
-
-    // Open the display
-  //  display = XOpenDisplay(NULL);
-  //  if (display == NULL) {
-  //      fprintf(stderr, "Unable to open display\n");
-  //     return 1;
-  // }
-
     // Get the root window
     root = DefaultRootWindow(display);
     // Get the _NET_ACTIVE_WINDOW atom
@@ -183,11 +192,11 @@ int find_active_window() {
                            &actual_type, &actual_format, &nitems, &bytes_after, &prop) == Success) {
         if (nitems != 0) {
             active_window = *(Window *)prop;
-            printf("Active window ID: %lu\n", active_window);
+            PRINTF("Active window ID: %lu\n", active_window);
 	     XFree(prop);
 	     return active_window;
         } else {
-            printf("No active window found.\n");
+            PRINTF("No active window found.\n");
 	    XFree(prop);
 	    return 0;
         }

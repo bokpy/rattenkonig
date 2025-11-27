@@ -78,26 +78,26 @@ def get_window_info(window):
     return [window,window.get_wm_name()] + list(window.get_wm_class())
 
 caps={ec.EV_KEY:ladder.ev_key_codes,ec.EV_REL:ladder.ev_rel_codes}
-class MouseKing(UInput):
+class PiedPiper(UInput):
     """class writing the mouse and keyboard events"""
-    the_king=None
+    piper=None
 
     def __init__(S):
-        if MouseKing.the_king:
-            print(f'Only one mouse can bee the King')
+        if PiedPiper.piper:
+            print(f'There should only bee one Pied Piper.')
             exit(666)
         try:
-            super().__init__(caps,name="Ratoncito Perez")
+            super().__init__(caps,name="Pied Piper of Hamelin")
             atexit.register(S.abdicate_crown)
         except PermissionError as e:
             print(help_text)
             exit (e.errno)
-        MouseKing.the_king=S
+        PiedPiper.piper=S
         S.pressed_keys=None
 
     def abdicate_crown(S):
         S.close()
-        print(f'Royal highness "{S.name}" abdicated.')
+        print(f'Pied Piper left Hamelin.')
 
     def report_move(S,ev_code,ev_value):
         #print('-',end='',flush=True)
@@ -181,12 +181,12 @@ class MouseKing(UInput):
 # ui.syn()
 #ui.closedef
 
-def test_the_king():
-    king=MouseKing()
-    #print(king.capabilities())
+def test_piper():
+    piper=PiedPiper()
+    #print(piper.capabilities())
     for i in range(1,20):
-        king.squeak_code(ec.EV_KEY, ec.KEY_1+i, 1)
-        king.squeak_code(ec.EV_KEY, ec.KEY_1+i, 0)
+        piper.squeak_code(ec.EV_KEY, ec.KEY_1+i, 1)
+        piper.squeak_code(ec.EV_KEY, ec.KEY_1+i, 0)
         time.sleep(.3)
 
     dirx=10
@@ -196,20 +196,20 @@ def test_the_king():
             dirx=-dirx
         if i % 80 == 0:
             diry=-diry
-        king.report_move( ec.REL_X, dirx)
-        king.report_move( ec.REL_Y, diry)
+        piper.report_move( ec.REL_X, dirx)
+        piper.report_move( ec.REL_Y, diry)
         time.sleep(.3)
-    #second_king=MouseKing()
+    #second_king=PiedPiper()
 
 def test_message():
-    king=MouseKing()
+    king=PiedPiper()
     time.sleep(3)
     print('Message Start:')
     king.message('Hello World!')
     print('Message End:')
 
 def main():
-    #test_the_king()
+    #test_piper()
     test_message()
 
 if __name__=='__main__':
