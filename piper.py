@@ -4,6 +4,7 @@ import atexit
 import time
 from Xlib import display
 import ladders as ladder
+import  tracer as trace
 from ladders import ascii_to_evdev as asc2ev
 import toys as toy
 from icecream import ic
@@ -53,31 +54,8 @@ def is_iterable(obj):
     except TypeError:
         return False
 
-def get_focused_window():
-    """
-    Gets the currently focused window using Xlib.
-    Returns the window ID as an integer, or None if no window has focus.
-    """
-    try:
-        d = display.Display()
-        window = d.get_input_focus().focus
-        if window != 0:
-            return window
-        else:
-            return 0
-    except Exception as e:
-        print(f"Error: {e}")
-        return None
-    finally:
-        if 'd' in locals():
-            d.close()
-
-def get_window_info(window):
-    if window==0:
-        return [0,None,None,None]
-    return [window,window.get_wm_name()] + list(window.get_wm_class())
-
 caps={ec.EV_KEY:ladder.ev_key_codes,ec.EV_REL:ladder.ev_rel_codes}
+
 class PiedPiper(UInput):
     """class writing the mouse and keyboard events"""
     piper=None
@@ -88,14 +66,16 @@ class PiedPiper(UInput):
             exit(666)
         try:
             super().__init__(caps,name="Pied Piper of Hamelin")
-            atexit.register(S.abdicate_crown)
         except PermissionError as e:
             print(help_text)
             exit (e.errno)
         PiedPiper.piper=S
-        S.pressed_keys=None
+        #S.pressed_keys=None
+        trace.open_window()
+        atexit.register(S.leave_hamelin)
 
-    def abdicate_crown(S):
+    def leave_hamelin(S):
+        trace.close_window()
         S.close()
         print(f'Pied Piper left Hamelin.')
 
@@ -109,7 +89,7 @@ class PiedPiper(UInput):
         S.write(ec.EV_SYN,ec.SYN_REPORT,0)
 
     def squeak_event(S,event):
-        #print(f'King squeak got {event}')
+        #print(f'ratter squeak got {event}')
         S.write_event(event)
         S.syn()
         return S
@@ -175,6 +155,24 @@ class PiedPiper(UInput):
         time.sleep(snooze)
         return S
 
+    def id_active_window(S):
+        return trace.active_window_name_and_classes()
+
+    def match_active_window(S,name=None,class_name=None,class_class=None,show=False):
+        n,cn,cc=trace.active_window_name_and_classes()
+        if show:
+            print(f'"{n}","{cn}","{cc}"')
+        if name and (not name in n ):
+            return False
+        if class_name and (not class_name in cn ):
+            return False
+        if class_class and (not class_class in cc):
+            return False
+        return True
+
+    def id_mouse_window(S):
+        return trace.mouse_over_window_name_and_classes()
+
 # accepts only KEY_* events by default
 # ui.write(e.EV_KEY, e.KEY_A, 1)  # KEY_A down
 # ui.write(e.EV_KEY, e.KEY_A, 0)  # KEY_A up
@@ -199,18 +197,30 @@ def test_piper():
         piper.report_move( ec.REL_X, dirx)
         piper.report_move( ec.REL_Y, diry)
         time.sleep(.3)
-    #second_king=PiedPiper()
+    #second_ratter=PiedPiper()
 
 def test_message():
-    king=PiedPiper()
+    ratter=PiedPiper()
     time.sleep(3)
     print('Message Start:')
-    king.message('Hello World!')
+    ratter.message('Hello World!')
     print('Message End:')
+
+def test_trace():
+    piper=PiedPiper()
+    count = 5
+    last=''
+    while count>0:
+        n,cn,cc=piper.id_active_window()
+        if n != last:
+            count-=1
+            last=n
+            print(f'{n},{cn},{cc}')
 
 def main():
     #test_piper()
-    test_message()
+    #test_message()
+    test_trace()
 
 if __name__=='__main__':
     main()

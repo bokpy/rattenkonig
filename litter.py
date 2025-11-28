@@ -91,7 +91,7 @@ class Litter(trick.CapabilityDict):
         f.write(f'import Xlib\n')
         f.write('\n')
         f.write(f'sire=None\n')
-        f.write(f'display=None\n')
+        #f.write(f'display=None\n')
 
     def write_sibling(S,f):
         kin = [ pup.by_id_name for pup in S.pups ]
@@ -106,12 +106,13 @@ class Litter(trick.CapabilityDict):
 
     def write_function(S,f,ev_key,event_name,event_no):
         f.write(f'\ndef {S.function_name(event_name,event_no)}(event): # code {event_no}\n')
-        f.write('    global sire,display\n')
+        #f.write('    global sire,display\n')
+        f.write('    global piper\n')
         if ev_key== ec.EV_KEY or ev_key==ec.EV_REL:
-            f.write(f'    sire.write_event(event)\n')
+            f.write(f'    piper.write_event(event)\n')
             return
         f.write(f'    pass\n')
-        f.write(f'    #sire.write_event(event)\n')
+        f.write(f'    #piper.write_event(event)\n')
 
     def write_functions(S,f):
         f.write('\n')

@@ -32,12 +32,12 @@ def check_alarm( event):
         stopper_count -= 1
         print(f'{stopper_count=}')
         if stopper_count < 0:
-            ic('stopped by repeated Middle Button presses.')
+            #ic('stopped by repeated Middle Button presses.')
             raise CloseCircus
 
 def ungrab_devices():
     global troupe_devices
-    print('\nMouse sabbatical')
+    print('Mouse sabbatical')
     for dev in troupe_devices:
         print (f'Free "{dev.name}"')
         dev.ungrab()
@@ -59,7 +59,7 @@ async def read_device(dev):
         print(f'{dev.fd=} {toy.str_event(event)}')
         raise
     except CloseCircus:
-        print("Mouse Circus was Closed.}")
+        print("Time to leave.")
         raise
     print(f'{fired}', end='', flush=True)
     fired = ' go'
@@ -71,7 +71,7 @@ async def main_runner():
     try:
         await asyncio.gather(*tasks)
     except CloseCircus:
-        print("Circus Got Closed return from async def main_runner()")
+        print("Circus Got Closed.") #return from async def main_runner()")
         return
 
 def main():
@@ -88,6 +88,7 @@ def main():
             troupe_devices.append(device)
             fd_to_troupe[device.fd]=ensemble
     atexit.register(ungrab_devices)
+    #vfvfvfvfvfprint('\nasyncio.run(main_runner()) start')
     try:
         asyncio.run(main_runner())
     except Exception as e:
@@ -102,7 +103,8 @@ if __name__ == "__main__":
 
     if args.windows:
         from tracer import show_pointed_windows
-
+        show_pointed_windows()
+        exit(0)
 
     act.set_config_dir(args.configdir)
     if args.template:

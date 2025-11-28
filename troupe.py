@@ -3,21 +3,22 @@
 Read the configuration for the devices from the file in
 config_dir and make the functions available via a dict
 '''
-import os
-import sys
-import atexit
+# import os
+# import atexit
 import importlib
-import time
-
-import evdev
-from evdev import ecodes as ec,categorize
+# import time
+#
+# import evdev
+# from evdev import ecodes as ec,categorize
 #import json
 #from collections import defaultdict
+# from tricks import  CapabilityDict
+# from ladders import event_types_by_number
+
+import sys
 from icecream import ic
 from piper import PiedPiper
 import pinky as pink
-from tricks import  CapabilityDict
-from ladders import event_types_by_number
 import toys as toy
 
 ic.configureOutput(includeContext=True)
@@ -29,6 +30,16 @@ def set_config_dir(d):
     config_dir=toy.make_config_dir(d)
     # enable import of the configuration libs
     sys.path.append(config_dir)
+
+def import_module_named(module_name ):
+    ic(module_name)
+    # Step 2: Import the module using __import__()
+    try:
+        module = __import__(module_name)
+        return module
+    except ImportError as e:
+       ic(e)
+    return None
 
 class MouseTroupe:
     def __init__(S,pinkies:[pink.Pinky]):
@@ -47,25 +58,37 @@ class MouseTroupe:
         if S.magic_tricks:
             S.events = [mouse.event for mouse in S.mice]
         #ic(S.events)
-
         #ic(S.file_path)
+
     def is_preforming(S):
         return S.magic_tricks!=None
 
     def actors(S):
         return S.mice
 
+    # def read_magic(S):
+    #
+    #     ic(S.name)
+    #     config = import_module_named(S.name)
+    #     import usb_Nordic_2_4G_Wireless_Receiver_if01_event_mouse
+    #     if config:
+    #         print(f'Config: "{S.file_path}" found.\n')
+    #         S.magic_tricks = config.event_lookup
+    #         config.piper= PiedPiper.piper
+
     def read_magic(S):
+        #ic(S.name)
         try:
+            #ic(S.name)
             config = importlib.import_module(S.name)
         except Exception as e:
-            # ic(e)
+            #ic(e)
             print(f'"{S.name}"\nhas no config in\n"{config_dir}"\n')
+            #ic(S.name)
             return
         print(f'Config: "{S.file_path}" found.\n')
         S.magic_tricks = config.event_lookup
         config.piper= PiedPiper.piper
-
 
     # def do_magic(S,event):
     #     if not event.type in  CapabilityDict.event_type_set:
@@ -105,7 +128,6 @@ class MouseCircus(list):
     def show(S):
         for troupe in S:
             troupe.show()
-
 
 def test_MouseCircus():
     circus = MouseCircus()

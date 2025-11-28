@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 import ctypes
+import os.path
 import time
 import re
 import atexit
@@ -11,7 +12,23 @@ clean_ascii=re.compile(r'\x1b%.')
 # xqp_path=os.path.abspath('.')+'/xqp_wrapper.so'
 # print(f'{xqp_path=}')
 #libObject = ctypes.CDLL(xqp_path)
-libObject = ctypes.CDLL('./xqp_wrapper.so')
+# so_path='xqp_wrapper.so'
+# if os.path.isfile(so_path):
+#     ic(so_path)
+# else:
+#     so_path='./xqp_wrapper.so'
+# if  os.path.isfile(so_path):
+#     ic(so_path)
+# else:
+#     so_path='./X11-ctypes/xqp_wrapper.so'
+# if os.path.isfile(so_path):
+#     ic(so_path)
+# else:
+#     so_path=os.path.abspath('.')+'/X11-ctypes/xqp_wrapper.so'
+# if os.path.isfile(so_path):
+#     ic(so_path)
+#libObject = ctypes.CDLL(so_path)
+libObject = ctypes.CDLL('./X11-ctypes/xqp_wrapper.so')
 # libObject.xqp_init()
 # libObject.xqp_show()
 # libObject.xqp_find_mouse_window()
@@ -60,7 +77,7 @@ def get_active_window():
 def close_window():
     global window
     if not window:
-        ic()
+        #ic()
         print("No window to close.")
         return
     if libObject.xqp_close():
