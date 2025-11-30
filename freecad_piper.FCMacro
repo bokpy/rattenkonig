@@ -1,0 +1,13 @@
+import  FreeCAD, FreeCADGui
+from PySide import QtGui,QtCore
+import PartDesignGui
+
+request,_ = QtGui.QInputDialog.getText(None,"Command Selector","Input a command key")
+#print(f'"{request=}"')
+
+if "Workbench" in request :
+    try:
+        FreeCADGui.activateWorkbench(request)
+    except KeyError:
+        QtGui.QMessageBox.critical(None,'No such Workbench',request)
+

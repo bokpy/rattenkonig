@@ -88,7 +88,6 @@ class Pinky:
         print(f'{tabs}\tversion: {S.version}')
         print(f'{tabs}\tbustype: {S.bustype} "{S.bustype_str}"')
 
-
     def get_capabilities(S) -> dict:
         dev = evdev.InputDevice('/dev/input/event' + str(S.event))
         capabilities = dev.capabilities(verbose=True, absinfo=False)
@@ -119,7 +118,6 @@ class Pinky:
                 print('\n\t', end='')
             print(f'[{key_code}:"{key_name}"] ', end='')
         print()
-
 
     def make_placeholders(S):
         print('\nEnter the number of place holders to add ',end='')
@@ -164,6 +162,55 @@ def family_reunion()->dict[int:[]]:
     #ic(families)
     return families
 
+def keystoke_tester():
+    from ladders import  ev_type_code_no_to_str as type_code_s,ev_type_no_to_str as type_s
+    from time import sleep
+    tribes = family_reunion()
+    for tribe, kin in tribes.items():
+        print(f'{tribe:02d}')
+        for sib in kin:
+            print(f'\t\tevent {str(sib)}')
+    choise=toy.get_an_integer('Enter an event number to test.')
+    if choise<0:
+        print(f'Got {choise} leaving Bye.')
+        return
+
+    try:
+        dev = evdev.InputDevice(toy.event_path(choise))
+        dev.grab()
+    except Exception as e:
+        ic(e)
+        raise
+
+    countreset=12
+    countdown=countreset
+    lastkey=0
+    while countdown > 0:
+        #print(f'{countdown=}')
+        event=dev.read_one()
+        if not event:
+            sleep(.8)
+            continue
+        if event.type == ec.EV_KEY:
+            #ic(lastkey,event.code)
+            if lastkey == event.code:
+                countdown -= 1
+                continue
+            lastkey=event.code
+            countdow=countreset
+        try:
+            print (f'{type_s[event.type]},'
+                   f'{type_code_s[event.type][event.code]},'
+                   f'{event.value}')
+        except KeyError as e:
+            print(event)
+            ic(e)
+            raise
+
+    dev.ungrab()
+    dev.close()
+
+
 def test_family_reunion():
     tribes = family_reunion()
     for tribe, kin in tribes.items():
@@ -178,7 +225,8 @@ def test_pinky():
 
 def main(argv: list[str] | None = None) -> int:
     #test_pinky()
-    test_family_reunion()
+    #test_family_reunion()
+    keystoke_tester()
 
 if __name__ == "__main__":
     main()

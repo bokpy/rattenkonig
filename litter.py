@@ -87,10 +87,8 @@ class Litter(trick.CapabilityDict):
         f.write('\n')
         f.write(f'import evdev\n')
         f.write(f'from evdev import ecodes as ec\n')
-        f.write(f'import king\n')
-        f.write(f'import Xlib\n')
         f.write('\n')
-        f.write(f'sire=None\n')
+        f.write(f'piper=None\n')
         #f.write(f'display=None\n')
 
     def write_sibling(S,f):
@@ -106,10 +104,12 @@ class Litter(trick.CapabilityDict):
 
     def write_function(S,f,ev_key,event_name,event_no):
         f.write(f'\ndef {S.function_name(event_name,event_no)}(event): # code {event_no}\n')
-        #f.write('    global sire,display\n')
         f.write('    global piper\n')
         if ev_key== ec.EV_KEY or ev_key==ec.EV_REL:
-            f.write(f'    piper.write_event(event)\n')
+            f.write('    # if not piper.match_active_window():\n')
+            f.write('    #     piper.write_event(event)\n')
+            f.write('    # return\n')
+            f.write('    piper.write_event(event)\n')
             return
         f.write(f'    pass\n')
         f.write(f'    #piper.write_event(event)\n')

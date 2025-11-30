@@ -3,19 +3,10 @@
 Read the configuration for the devices from the file in
 config_dir and make the functions available via a dict
 '''
-# import os
-# import atexit
 import importlib
-# import time
-#
-# import evdev
-# from evdev import ecodes as ec,categorize
-#import json
-#from collections import defaultdict
-# from tricks import  CapabilityDict
-# from ladders import event_types_by_number
-
 import sys
+from logging import exception
+
 from icecream import ic
 from piper import PiedPiper
 import pinky as pink
@@ -31,15 +22,15 @@ def set_config_dir(d):
     # enable import of the configuration libs
     sys.path.append(config_dir)
 
-def import_module_named(module_name ):
-    ic(module_name)
-    # Step 2: Import the module using __import__()
-    try:
-        module = __import__(module_name)
-        return module
-    except ImportError as e:
-       ic(e)
-    return None
+# def import_module_named(module_name ):
+#     ic(module_name)
+#     # Step 2: Import the module using __import__()
+#     try:
+#         module = __import__(module_name)
+#         return module
+#     except ImportError as e:
+#        ic(e)
+#     return None
 
 class MouseTroupe:
     def __init__(S,pinkies:[pink.Pinky]):
@@ -81,10 +72,12 @@ class MouseTroupe:
         try:
             #ic(S.name)
             config = importlib.import_module(S.name)
-        except Exception as e:
-            #ic(e)
+        except ModuleNotFoundError as e:
             print(f'"{S.name}"\nhas no config in\n"{config_dir}"\n')
-            #ic(S.name)
+            return
+        except Exception as e:
+            print(f'Error(s) in "{S.file_path}"?')
+            ic(e)
             return
         print(f'Config: "{S.file_path}" found.\n')
         S.magic_tricks = config.event_lookup

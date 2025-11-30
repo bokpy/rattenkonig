@@ -9,7 +9,7 @@ from ladders import ascii_to_evdev as asc2ev
 import toys as toy
 from icecream import ic
 ic.configureOutput(includeContext=True)
-KEYDELAY=.01
+KEYDELAY=.001
 L_SHIFT=SHIFT=42
 R_SHIFT=54
 help_text="""
