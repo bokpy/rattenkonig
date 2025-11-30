@@ -100,7 +100,7 @@ atexit.register(close_window)
 def show_pointed_windows():
     win=open_window()
     print('\nMove the mouse pointer over the windows to indentify it.')
-    timeout=5
+    timeout=20
     stop_time=time.time()
     time_limit=stop_time + timeout
     print(f'Stay {timeout}sec over the same window to stop.')

@@ -160,6 +160,8 @@ class PiedPiper(UInput):
 
     def match_active_window(S,name=None,class_name=None,class_class=None,show=False):
         n,cn,cc=trace.active_window_name_and_classes()
+        if (not n) or (n == "Bad Window"):
+            return False
         if show:
             print(f'"{n}","{cn}","{cc}"')
         if name and (not name in n ):

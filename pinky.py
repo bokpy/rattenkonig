@@ -164,12 +164,13 @@ def family_reunion()->dict[int:[]]:
 
 def keystoke_tester():
     from ladders import  ev_type_code_no_to_str as type_code_s,ev_type_no_to_str as type_s
-    from time import sleep
+    from time import sleep,time
     tribes = family_reunion()
     for tribe, kin in tribes.items():
-        print(f'{tribe:02d}')
+        #print(f'{tribe:02d}')
         for sib in kin:
             print(f'\t\tevent {str(sib)}')
+    print(f'No action will time out, press the same key many times to stop.')
     choise=toy.get_an_integer('Enter an event number to test.')
     if choise<0:
         print(f'Got {choise} leaving Bye.')
@@ -185,19 +186,28 @@ def keystoke_tester():
     countreset=12
     countdown=countreset
     lastkey=0
+    dwell=12
+    timeout = time()+dwell
+    timer_on=True
     while countdown > 0:
+        if timer_on and time() > timeout :
+            print (f'No action on event{choise} for {dwell}sec.')
+            break
         #print(f'{countdown=}')
         event=dev.read_one()
         if not event:
             sleep(.8)
             continue
+        if event.type == ec.EV_SYN or event.type == ec.EV_MSC:
+            continue
         if event.type == ec.EV_KEY:
+            timer_on = False
             #ic(lastkey,event.code)
             if lastkey == event.code:
                 countdown -= 1
                 continue
             lastkey=event.code
-            countdow=countreset
+            countdown=countreset
         try:
             print (f'{type_s[event.type]},'
                    f'{type_code_s[event.type][event.code]},'
@@ -206,10 +216,8 @@ def keystoke_tester():
             print(event)
             ic(e)
             raise
-
     dev.ungrab()
     dev.close()
-
 
 def test_family_reunion():
     tribes = family_reunion()

@@ -45,6 +45,7 @@ return's the window id of the window where the mouse pointer is over,
 */
 Window xqp_find_mouse_window() {
     //Window root_win;
+    XWindowAttributes attrs;     // used for XGetWindowAttributes(display, win, &attrs)
     Window dummy_parent_win;     // not used
     Window* xqp_kid_windows;     // list of windows to inspect
     unsigned int xqp_kid_count;  // number of children to inspect
@@ -64,6 +65,15 @@ Window xqp_find_mouse_window() {
     if ( xqp_kid_windows == NULL )  {return FALSE;} // no luck return 0
     for (unsigned int i = 0; i < xqp_kid_count;i++) {
         xqp_kid = xqp_kid_windows[i];
+	// check if the xqp_kid is ok.
+	// to prevent:
+	// X Error of failed request:
+	// BadWindow (invalid Window parameter)
+	//   Major opcode of failed request:  38 (X_QueryPointer)
+	if ( XGetWindowAttributes(display,xqp_kid, &attrs) == 0) {
+        // invalid window
+	return FALSE;
+      }
         PRINTF("inspect [%i] %lu ",i,xqp_kid);
         if (XQueryPointer(display,xqp_kid,
             &dummy_root_win,&xqp_wanted_kid_win,

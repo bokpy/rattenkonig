@@ -8,6 +8,16 @@ piper=None
 tag = 0xc0f400090111
 sibs = [ "usb-Hengchangtong_HCT_USB_Entry_Keyboard_000000000015-event-kbd", "usb-Hengchangtong_HCT_USB_Entry_Keyboard_000000000015-event-if01", "Hengchangtong__HCT_USB_Entry_Keyboard_System_Control", "usb-Hengchangtong_HCT_USB_Entry_Keyboard_000000000015-if01-event-kbd"]
 
+def freecad_bench_decorater(function):
+    def wrapper(*arg):
+        event,bench = arg
+        if event.value != 1:
+            return False
+        if not piper.match_active_window(name='FreeCAD'):
+            return False
+        function(bench)
+        return True
+    return wrapper
 
 def act_syn_report(event): # code 0
     global piper
@@ -453,53 +463,47 @@ def act_key_capslock(event): # code 58
     piper.write_event(event)
 
 
+# ('* test_cube - FreeCAD 1.1.0dev', 'freecad', 'FreeCAD')
+# ('Tasks', 'freecad', 'FreeCAD')
+# ('Report View', 'freecad', 'FreeCAD')
+# ('Cell Properties', 'freecad', 'FreeCAD')
+
 # Gui.activateWorkbench("PartDesignWorkbench")
 # Gui.activateWorkbench("PartWorkbench")
 # Gui.activateWorkbench("SketcherWorkbench")
 # Gui.activateWorkbench("DraftWorkbench")
 # Gui.activateWorkbench("SpreadsheetWorkbench")
 
+@freecad_bench_decorater
+def freecad_workbench_selection(bench):
+    global piper
+    piper.message('pp').nap(0.3).message(bench+'\n')
+
 def act_key_f1(event): # code 59
     global piper
-    print(' act_key_f1')
-    if event.value == 1:
-        piper.message('pp').nap(0.3).message("PartDesignWorkbench")
-    # if not piper.match_active_window():
-    #     piper.write_event(event)
-    # return
+    if freecad_workbench_selection(event,"PartDesignWorkbench"):
+        return
+        #print('F1 set PartDesignWorkbench')
 
 def act_key_f2(event): # code 60
     global piper
-    # if not piper.match_active_window():
-    #     piper.write_event(event)
-    # return
-    if event.value == 1:
-        piper.message('pp').nap(0.3).message("PartWorkbench")
-
+    if freecad_workbench_selection(event,"PartWorkbench"):
+        return
 
 def act_key_f3(event): # code 61
     global piper
-    # if not piper.match_active_window():
-    #     piper.write_event(event)
-    # return
-    if event.value == 1:
-        piper.message('pp').nap(0.3).message("SketcherWorkbench")
+    if freecad_workbench_selection(event,"SketcherWorkbench"):
+        return
 
 def act_key_f4(event): # code 62
     global piper
-    # if not piper.match_active_window():
-    #     piper.write_event(event)
-    # return
-    if event.value == 1:
-        piper.message('pp').nap(0.3).message("DraftWorkbench")
+    if freecad_workbench_selection(event,"DraftWorkbench"):
+        return
 
 def act_key_f5(event): # code 63
     global piper
-    # if not piper.match_active_window():
-    #     piper.write_event(event)
-    # return
-    if event.value == 1:
-        piper.message('pp').nap(0.3).message("SpreadsheetWorkbench")
+    if freecad_workbench_selection(event,"SpreadsheetWorkbench"):
+        return
 
 def act_key_f6(event): # code 64
     global piper

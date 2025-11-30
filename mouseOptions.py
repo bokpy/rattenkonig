@@ -39,6 +39,11 @@ parser.add_argument('-w', '--windows',
                          'windows hovered bij the mouse'
                     ,action='store_true'
                     )
+
+parser.add_argument('-k', '--keys',
+                    help='Test witch events are produced on a device event number.'
+                    ,action='store_true'
+                    )
 def main():
     args = parser.parse_args()
     print(args)
