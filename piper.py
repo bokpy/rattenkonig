@@ -54,7 +54,9 @@ def is_iterable(obj):
     except TypeError:
         return False
 
-caps={ec.EV_KEY:ladder.ev_key_codes,ec.EV_REL:ladder.ev_rel_codes}
+#caps={ec.EV_KEY:ladder.ev_key_codes,ec.EV_REL:ladder.ev_rel_codes}
+
+caps = {ec.EV_LED:ladder.ev_led_codes,ec.EV_KEY: ladder.ev_key_codes, ec.EV_REL: ladder.ev_rel_codes}
 
 class PiedPiper(UInput):
     """class writing the mouse and keyboard events"""
@@ -101,52 +103,74 @@ class PiedPiper(UInput):
     def default(S,event):
         print(toy.str_event(event))
 
-    def juggle_keys(S,keys):
+    def simultaneous_keys(S,*args):
         # Press all keys
-        for key_code in keys:
-            S.write(ec.EV_KEY, key_code, 1)  # Key down
-            S.write(ec.EV_SYN, ec.SYN_REPORT, 0)
-            time.sleep(KEYDELAY)
-        # Release all keys
-        for key_code in keys:
-            S.write(ec.EV_KEY, key_code, 0)  # Key up
-            S.write(ec.EV_SYN, ec.SYN_REPORT, 0)
-            time.sleep(KEYDELAY)
-        return  S
-
-    def type_key(S,key):
-        S.write(ec.EV_KEY,key,1)
-        S.write(ec.EV_SYN, ec.SYN_REPORT, 0)
+        # for key_code in args:
+        #     S.write(ec.EV_KEY, key_code, 1)  # Key down
+        # S.write(ec.EV_SYN, ec.SYN_REPORT, 0)
+        # time.sleep(KEYDELAY)
+        # # Release all keys
+        # for key_code in args:
+        #     S.write(ec.EV_KEY, key_code, 0)  # Key up
+        # S.write(ec.EV_SYN, ec.SYN_REPORT, 0)
+        # return  S
+        S.press_and_hold(*args)
         time.sleep(KEYDELAY)
-        S.write(ec.EV_KEY,key,0)
-        S.write(ec.EV_SYN, ec.SYN_REPORT, 0)
-        time.sleep(KEYDELAY)
-
-    def press_and_hold(S,keys):
-        if not is_iterable(keys):
-            keys=[keys]
-        for key in keys:
-            S.write(ec.EV_KEY,key,1)
-            S.write(ec.EV_SYN, ec.SYN_REPORT, 0)
-            #time.sleep(KEYDELAY)
-        #S.syn()
+        S.release(*args)
         return S
 
-    def release(S,keys):
-        if not is_iterable(keys):
-            keys=[keys]
-        for key in keys:
+    def type_key(S,key:int):
+        '''
+        simulate a single key or button press
+        :param key: evdev.ecode.code of a key of button
+        :type key: int
+        :return: self
+        :rtype: PiedPiper
+        '''
+        S.write(ec.EV_KEY,key,1)
+        S.syn()
+        time.sleep(KEYDELAY)
+        S.write(ec.EV_KEY,key,0)
+        S.syn()
+
+    def press_and_hold(S,*args):
+        '''
+        press and hold a number of keys and/or buttons simultaneous.
+        :param args: evdev.ecode.code of keys and/or buttons
+        :type args: int
+        :return: self
+        :rtype: PiedPiper
+        '''
+        for key in args:
+            S.write(ec.EV_KEY,key,1)
+        S.syn()
+        return S
+
+    def release(S,*args):
+        '''
+        release keys/buttons previous pressed and hold
+        :param args: keys/buttons to release
+        :type args: int
+        :return: self
+        :rtype: PiedPiper
+        '''
+        for key in args:
             S.write(ec.EV_KEY,key,0)
-            S.write(ec.EV_SYN, ec.SYN_REPORT, 0)
-        #time.sleep(KEYDELAY)
-        #S.syn()
+        S.syn()
         return S
 
     def message(S,s):
+        '''
+        print a string as typed from a keyboard without capslock on.
+        :param s: Ascii string to type
+        :type s: str
+        :return: self
+        :rtype: PiedPiper
+        '''
         for c in s:
             code,shift = asc2ev[ord(c)]
             if shift:
-                S.juggle_keys([SHIFT,code])
+                S.simultaneous_keys(SHIFT,code)
                 continue
             S.type_key(code)
         return S
@@ -219,10 +243,22 @@ def test_trace():
             last=n
             print(f'{n},{cn},{cc}')
 
+def test_hold_keys():
+    time.sleep(3)
+    piper=PiedPiper()
+    ic(piper)
+    piper.press_and_hold((ec.BTN_LEFT,ec.BTN_RIGHT))
+    print(piper.device.active_keys(verbose=True))
+    piper.message('<Buttons Pressed Message.>')
+    piper.release((ec.BTN_RIGHT,ec.BTN_LEFT))
+    print(piper.device.active_keys(verbose=True))
+    time.sleep(3)
+
 def main():
     #test_piper()
     #test_message()
-    test_trace()
+    #test_trace()
+    test_hold_keys()
 
 if __name__=='__main__':
     main()

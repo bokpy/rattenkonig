@@ -9,48 +9,55 @@ piper=None
 tag = 0x25a7fa100110
 sibs = [ "usb-Nordic_2.4G_Wireless_Receiver-if01-event-mouse"]
 
+def FreeCAD_check_value_1(event):
+    global piper
+    if not event.value == 1:
+        return False
+    return piper.match_active_window(name='FreeCAD')
+
 def act_syn_report(event): # code 0
     global piper 
     pass
-    #piper.write_event(event)
+    #piper.squeak_event(event)
 
 def act_syn_config(event): # code 1
     global piper 
     pass
-    #piper.write_event(event)
+    #piper.squeak_event(event)
 
 def act_syn_mt_report(event): # code 2
     global piper 
     pass
-    #piper.write_event(event)
+    #piper.squeak_event(event)
 
 def act_4(event): # code 4
     global piper 
     pass
-    #piper.write_event(event)
+    #piper.squeak_event(event)
 
 def act_btn_left(event): # code 272
     global piper 
     print('act_btn_left')
 
 def act_btn_right(event): # code 273
+    # ('Insert Length', 'freecad', 'FreeCAD')
+    # ('Expression Editor', 'freecad', 'FreeCAD')
     global piper
-    if not piper.match_active_window(name='Expression Editor',class_class='FreeCAD'):
-        piper.write_event(event)
-        return
-    if not event.value:
-        return
-    #piper.message("=").map(.5).message("Spreadsheet.")
-    piper.message("Spreadsheet.")
+    nw,nc,cc = piper.id_active_window()
+    val=event.value
+    if (val==1 ) and ('FreeCAD' in cc) :
+        if 'Insert ' in nw:
+            piper.message("=")
+            return
+        if 'Expression' in nw:
+            piper.message("Spreadsheet.")
+            return
+    piper.squeak_event(event)
 
 def act_btn_middle(event): # code 274
     global piper 
-    if not piper.match_active_window(name='FreeCAD',show=True):
-        piper.write_event(event)
-        return
-    if not event.value:
-        return
-    piper.message('v').nap().message('f')
+    if FreeCAD_check_value_1(event):
+        piper.message('v').nap().message('f')
 
 front='1';top='2';right='3';back='4';bottom='5';left='6'
 
@@ -60,37 +67,36 @@ current_face = front
 
 def act_btn_side(event):  # code 275
     global piper,current_face, tumble
-    if not piper.match_active_window(name='FreeCAD'):
-        piper.write_event(event)
-        return
-    if not event.value:
-        return
-    if current_face in tumble:
-        current_face = tumble[current_face]
-    else:
-        current_face=front
-    print (f'window {piper.id_active_window()}')
-    piper.message(current_face)
+    if FreeCAD_check_value_1(event):
+        if current_face in tumble:
+            current_face = tumble[current_face]
+        else:
+            current_face=front
+        piper.message(current_face)
 
 def act_btn_extra(event):  # code 276
     global piper,current_face,spin
-    if not piper.match_active_window(name='FreeCAD'):
-        piper.write_event(event)
-        return
-    if not event.value:
-        return
-    if current_face in spin:
-        current_face=spin[current_face]
-    else:
-        current_face=front
-    piper.message(current_face)
+    if FreeCAD_check_value_1(event):
+        if current_face in spin:
+            current_face=spin[current_face]
+        else:
+            current_face=front
+        piper.message(current_face)
 
 def rel_x_y(event):
     global piper
-    if not piper.match_active_window(name='FreeCAD'):
-        piper.write_event(event)
+    nw,nc,cc = piper.id_active_window()
+    if 'FreeCAD' in nw :
+        piper.press_and_hold(ec.BTN_MIDDLE).squeak_event(event).release(ec.BTN_MIDDLE)
         return
-    piper.press_and_hold(ec.BTN_MIDDLE).squeak_event(event).release(ec.BTN_MIDDLE)
+    if 'PrusaSlicer' in nw :
+        return # PrusaSlicer doesn't like this
+        #print ('rel_x_y(PrusaSlicer)')
+        piper.press_and_hold(ec.BTN_LEFT,ec.BTN_RIGHT)
+        print(piper.device.active_keys(verbose=True))
+        piper.squeak_event(event)
+        piper.release(ec.BTN_RIGHT,ec.BTN_LEFT)
+        print(piper.device.active_keys(verbose=True))
 
 def act_rel_x(event): # code 0
     rel_x_y(event)
@@ -100,24 +106,24 @@ def act_rel_y(event): # code 1
 
 def act_rel_hwheel(event): # code 6
     global piper 
-    piper.write_event(event)
+    piper.squeak_event(event)
 
 def act_rel_wheel(event): # code 8
     global piper 
-    piper.write_event(event)
+    piper.squeak_event(event)
 
 def act_rel_wheel_hi_res(event): # code 11
     global piper 
-    piper.write_event(event)
+    piper.squeak_event(event)
 
 def act_rel_hwheel_hi_res(event): # code 12
     global piper 
-    piper.write_event(event)
+    piper.squeak_event(event)
 
 def act_msc_scan(event): # code 4
     global piper 
     pass
-    #piper.write_event(event)
+    #piper.squeak_event(event)
 
 event_lookup = {
  0:{

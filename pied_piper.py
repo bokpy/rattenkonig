@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import asyncio, evdev
 import asyncio
+from logging import exception
+
 from evdev import InputDevice, categorize, ecodes as ec, list_devices
 import toys as toy
 import troupe as act
@@ -60,6 +62,12 @@ async def read_device(dev):
     except CloseCircus:
         print("Time to leave.")
         raise
+    except Exception as e:
+        ic(e)
+        troupe=fd_to_troupe[dev.fd]
+        print(f'troupe"{troupe.name}" {toy.str_event(event)} ')
+        raise
+
     print(f'{fired}', end='', flush=True)
     fired = ' go' # repeated for each device
 

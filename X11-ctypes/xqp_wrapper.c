@@ -14,7 +14,18 @@
 
 //gcc  -fPIC -o xqp_wrapper xqp_wrapper.c -lX11
 //gcc -shared -fPIC -o xqp_wrapper xqp_wrapper.c -lX11 SEGMENTATION FAULT
+/*
+Badwindow testing
+*/
+volatile int had_badwindow = 0;
 
+int temp_xerr_handler(Display *dpy, XErrorEvent *e) {
+    if (e->error_code == BadWindow) {
+        had_badwindow = 1;
+        return 0;
+    }
+    return 0;
+}
 /*
 the global variables initialized by Window xqp_init()
 */
@@ -70,10 +81,16 @@ Window xqp_find_mouse_window() {
 	// X Error of failed request:
 	// BadWindow (invalid Window parameter)
 	//   Major opcode of failed request:  38 (X_QueryPointer)
-	if ( XGetWindowAttributes(display,xqp_kid, &attrs) == 0) {
-        // invalid window
-	return FALSE;
-      }
+	had_badwindow = 0; // ChatGpt solution
+    int (*old_handler)(Display*, XErrorEvent*) = XSetErrorHandler(temp_xerr_handler);
+	XGetWindowAttributes(display,xqp_kid, &attrs);
+	XSync(display, False);
+    XSetErrorHandler(old_handler);
+    if (had_badwindow) {
+    return FALSE;
+    // window is invalid
+    //continue;   // skip this child
+    }
         PRINTF("inspect [%i] %lu ",i,xqp_kid);
         if (XQueryPointer(display,xqp_kid,
             &dummy_root_win,&xqp_wanted_kid_win,
@@ -175,7 +192,7 @@ void _clean_copy_string(void* output,void* input) {
     char* inp=(char*)input;
     while (*inp) {
         if (*inp < 0) {
-            // Skip toutputhe escape sequence
+            // Skip the output escape sequence
               inp ++; // Skip non ascii
         } else {
            *(out++) =*(inp++);

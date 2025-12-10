@@ -100,28 +100,31 @@ atexit.register(close_window)
 def show_pointed_windows():
     win=open_window()
     print('\nMove the mouse pointer over the windows to indentify it.')
-    timeout=20
-    stop_time=time.time()
-    time_limit=stop_time + timeout
-    print(f'Stay {timeout}sec over the same window to stop.')
+    # timeout=120
+    # stop_time=time.time()
+    # time_limit=stop_time + timeout
+    # print(f'Stay {timeout}sec over the same window to stop.')
+    print('CTRL-C to leave.')
     prev=None
     visited=[]
     field = lambda x:x[0]
-    while stop_time < time_limit:
-        mouse_window=get_mouse_over_window()
-        #mouse_window=get_active_window()
-        wn,wcn,wcc=get_window_id(mouse_window)
-        stop_time=time.time()
-        if prev != wn:
-            if (wn,wcn,wcc) not in visited:
-                visited.append((wn,wcn,wcc))
-            time_limit=stop_time + timeout
-            print(f'"{wn}","{wcn}","{wcc}"')
-            prev=wn
-    #ic(visited.sort(key=field ))
-    print(f'\nSorted Result: \n')
-    for t in visited:
-        print(t)
+    # while stop_time < time_limit:
+    try:
+        while True:
+            mouse_window=get_mouse_over_window()
+            #mouse_window=get_active_window()
+            wn,wcn,wcc=get_window_id(mouse_window)
+            stop_time=time.time()
+            if prev != wn:
+                if (wn,wcn,wcc) not in visited:
+                    visited.append((wn,wcn,wcc))
+                #time_limit=stop_time + timeout
+                print(f'"{wn}","{wcn}","{wcc}"')
+                prev=wn
+    except KeyboardInterrupt:
+        print(f'\nSorted Result: \n')
+        for t in visited:
+            print(t)
 
 
 def test_show_window_info():

@@ -107,12 +107,12 @@ class Litter(trick.CapabilityDict):
         f.write('    global piper\n')
         if ev_key== ec.EV_KEY or ev_key==ec.EV_REL:
             f.write('    # if not piper.match_active_window():\n')
-            f.write('    #     piper.write_event(event)\n')
+            f.write('    #     piper.squeak_event(event)\n')
             f.write('    # return\n')
-            f.write('    piper.write_event(event)\n')
+            f.write('    piper.squeak_event(event)\n')
             return
         f.write(f'    pass\n')
-        f.write(f'    #piper.write_event(event)\n')
+        f.write(f'    #piper.squeak_event(event)\n')
 
     def write_functions(S,f):
         f.write('\n')
