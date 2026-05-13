@@ -1,24 +1,14 @@
-# "/home/bob/python/rattenkonig/configs/USB_Gaming_Mouse.py"
-# Sun Nov 30 12:12:32 2025
+# "/home/bob/python/rattenkonig/configs/2_4G_Mouse.py"
+# Sat Apr 25 12:58:24 2026
 
 import evdev
 from evdev import ecodes as ec
 
 piper=None
-tag = 0x4d9fc4d0110
-sibs = [ "usb-04d9_USB_Gaming_Mouse-event-mouse", "usb-04d9_USB_Gaming_Mouse-if01-event-kbd", "usb-04d9_USB_Gaming_Mouse-event-if02", "USB_Gaming_Mouse"]
+tag = 0x1ea700660110
+sibs = [ "usb-1ea7_2.4G_Mouse-event-kbd", "usb-1ea7_2.4G_Mouse-event-if01", "usb-1ea7_2.4G_Mouse-if01-event-mouse", "2.4G_Mouse_Consumer_Control", "2.4G_Mouse_System_Control"]
 
 
-def freecad_window_key_presses(event,key_string):
-    global piper
-    if event.value != 1:
-        return False
-    if not piper.match_active_window(name='FreeCAD'):
-        return False
-    piper.message(key_string)
-    return True
-
-    return wrapper
 def act_syn_report(event): # code 0
     global piper
     pass
@@ -29,12 +19,12 @@ def act_syn_config(event): # code 1
     pass
     #piper.squeak_event(event)
 
-def act_syn_mt_report(event): # code 2
+def act_4(event): # code 4
     global piper
     pass
     #piper.squeak_event(event)
 
-def act_4(event): # code 4
+def act_17(event): # code 17
     global piper
     pass
     #piper.squeak_event(event)
@@ -45,6 +35,11 @@ def act_20(event): # code 20
     #piper.squeak_event(event)
 
 def act_syn_dropped(event): # code 3
+    global piper
+    pass
+    #piper.squeak_event(event)
+
+def act_syn_mt_report(event): # code 2
     global piper
     pass
     #piper.squeak_event(event)
@@ -110,107 +105,14 @@ def act_btn_0(event): # code 256
     # if not piper.match_active_window():
     #     piper.squeak_event(event)
     # return
-    print('act_btn_0')
+    piper.squeak_event(event)
 
-def act_key_3(event): # code 4 DEL
-    global piper
-    nw, nc, cc = piper.id_mouse_window()
-    val = event.value
-    if (val==1 ) and (('FreeCAD' in cc) or ('Gimp' in cc)):
-        piper.type_key(ec.KEY_DELETE)
-        return
-
-
-def act_key_2(event): # code 3
-    global piper
-    #nw,nc,cc = piper.id_active_window()
-    nw, nc, cc = piper.id_mouse_window()
-    val=event.value
-    # constraints pei menu
-    #if (val==1 ) and ('FreeCAD' in nw) :
-    if  ('FreeCAD' in nw):
-        piper.message("qd")
-        return
-
-def act_key_1(event): # code 2UNDO
-    global piper
-    nw, nc, cc = piper.id_mouse_window()
-    val = event.value
-    if (val == 0) and (('FreeCAD' in cc)or ('Gimp' in cc)):
-        piper.simultaneous_keys(ec.KEY_LEFTCTRL, ec.KEY_Z)
-        return
-
-
-def act_key_4(event): # code 5 Simple Contraints Pei
-    global piper
-    nw, nc, cc = piper.id_mouse_window()
-    if  ('FreeCAD' in nw):
-        piper.message("qc")
-        return
-
-def act_key_5(event): # code 6
-    global piper
-    #nw,nc,cc = piper.id_active_window()
-    nw, nc, cc = piper.id_mouse_window()
-    val=event.value
-    # sketcher geometry pei menu
-    #if (val==1 ) and ('FreeCAD' in nw) :
-    if  ('FreeCAD' in nw):
-        piper.message("qg")
-        return
-    
-def act_key_6(event): # code 7
-    global piper
-    nw, nc, cc = piper.id_mouse_window()
-    if ('FreeCAD' in nw):
-        piper.message("q6")
-        return
-    
-
-def act_key_9(event): # code 10
+def act_key_s(event): # code 31
     global piper
     # if not piper.match_active_window():
-    #     print('act_key_')
+    #     piper.squeak_event(event)
     # return
-    print('act_key_9')
-
-def act_key_8(event): # code 9
-    global piper
-    nw, nc, cc = piper.id_active_window()
-    if ('FreeCAD' in nw):
-        piper.message("qe")
-        return
-
-def act_key_7(event): # code 8
-    global piper
-    # if not piper.match_active_window():
-    #     print('act_key_')
-    # return
-    print('act_key_7')
-
-def act_key_0(event): # code 11 mouse button 10
-    global piper
-    nw, nc, cc = piper.id_mouse_window()
-    val = event.value
-    if (val == 1) and ('FreeCAD' in cc):
-        piper.type_key(ec.KEY_ESC)
-        return
-
-def act_key_kpplus(event): # code 78 mouse button 11/12?
-    global piper
-    nw, nc, cc = piper.id_mouse_window()
-    if ('FreeCAD' in nw):
-        piper.message("qc")
-        return
-
-def act_key_kpminus(event): # code 74 mouse button 12/11?
-    global piper
-    nw, nc, cc = piper.id_mouse_window()
-    if ('FreeCAD' in nw): #switch construction type and select procjection tool
-        if event.value:
-            piper.message("gngx")
-        return
-
+    piper.squeak_event(event)
 
 def act_rel_x(event): # code 0
     global piper
@@ -254,12 +156,12 @@ def act_rel_hwheel_hi_res(event): # code 12
     # return
     piper.squeak_event(event)
 
-def act_abs_volume(event): # code 32
+def act_abs_misc(event): # code 40
     global piper
     pass
     #piper.squeak_event(event)
 
-def act_abs_misc(event): # code 40
+def act_abs_volume(event): # code 32
     global piper
     pass
     #piper.squeak_event(event)
@@ -269,14 +171,40 @@ def act_msc_scan(event): # code 4
     pass
     #piper.squeak_event(event)
 
+def act_led_numl(event): # code 0
+    global piper
+    pass
+    #piper.squeak_event(event)
+
+def act_led_capsl(event): # code 1
+    global piper
+    pass
+    #piper.squeak_event(event)
+
+def act_led_scrolll(event): # code 2
+    global piper
+    pass
+    #piper.squeak_event(event)
+
+def act_led_compose(event): # code 3
+    global piper
+    pass
+    #piper.squeak_event(event)
+
+def act_led_kana(event): # code 4
+    global piper
+    pass
+    #piper.squeak_event(event)
+
 event_lookup = {
  0:{
        0:act_syn_report
     ,  1:act_syn_config
-    ,  2:act_syn_mt_report
     ,  4:act_4
+    , 17:act_17
     , 20:act_20
     ,  3:act_syn_dropped
+    ,  2:act_syn_mt_report
     }
 ,1:{
      272:act_btn_left
@@ -288,18 +216,7 @@ event_lookup = {
     ,278:act_btn_back
     ,279:act_btn_task
     ,256:act_btn_0
-    ,  4:act_key_3
-    ,  3:act_key_2
-    ,  2:act_key_1
-    ,  5:act_key_4
-    ,  6:act_key_5
-    ,  7:act_key_6
-    , 10:act_key_9
-    ,  9:act_key_8
-    ,  8:act_key_7
-    , 11:act_key_0
-    , 78:act_key_kpplus
-    , 74:act_key_kpminus
+    , 31:act_key_s
     }
 ,2:{
        0:act_rel_x
@@ -310,8 +227,8 @@ event_lookup = {
     , 12:act_rel_hwheel_hi_res
     }
 ,3:{
-      32:act_abs_volume
-    , 40:act_abs_misc
+      40:act_abs_misc
+    , 32:act_abs_volume
     }
 ,4:{
        4:act_msc_scan
@@ -319,6 +236,11 @@ event_lookup = {
 ,5:{
     }
 ,17:{
+       0:act_led_numl
+    ,  1:act_led_capsl
+    ,  2:act_led_scrolll
+    ,  3:act_led_compose
+    ,  4:act_led_kana
     }
 ,18:{
     }

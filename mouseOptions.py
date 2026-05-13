@@ -44,6 +44,11 @@ parser.add_argument('-k', '--keys',
                     help='Test witch events are produced on a device event number.'
                     ,action='store_true'
                     )
+
+# parser.add_argument('-r', '--run',
+#                     help='Run in the background to catch mouse events.'
+#                     ,action='store_true'
+#                     )
 def main():
     args = parser.parse_args()
     print(args)

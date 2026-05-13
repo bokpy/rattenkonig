@@ -20,6 +20,9 @@ def set_config_dir(d):
     config_dir=toy.make_config_dir(d)
 
 class Litter(trick.CapabilityDict):
+	"""
+
+	"""
 
     def __init__(S,pups:[pink.Pinky]):
         global config_dir

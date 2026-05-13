@@ -9,31 +9,7 @@ ic.configureOutput(includeContext=True)
 
 #clean_ascii=re.compile(r'[\w\d\. -]+')
 clean_ascii=re.compile(r'\x1b%.')
-# xqp_path=os.path.abspath('.')+'/xqp_wrapper.so'
-# print(f'{xqp_path=}')
-#libObject = ctypes.CDLL(xqp_path)
-# so_path='xqp_wrapper.so'
-# if os.path.isfile(so_path):
-#     ic(so_path)
-# else:
-#     so_path='./xqp_wrapper.so'
-# if  os.path.isfile(so_path):
-#     ic(so_path)
-# else:
-#     so_path='./X11-ctypes/xqp_wrapper.so'
-# if os.path.isfile(so_path):
-#     ic(so_path)
-# else:
-#     so_path=os.path.abspath('.')+'/X11-ctypes/xqp_wrapper.so'
-# if os.path.isfile(so_path):
-#     ic(so_path)
-#libObject = ctypes.CDLL(so_path)
 libObject = ctypes.CDLL('./X11-ctypes/xqp_wrapper.so')
-# libObject.xqp_init()
-# libObject.xqp_show()
-# libObject.xqp_find_mouse_window()
-# libObject.xqp_get_name_and_class()
-# libObject.xqp_close()
 
 window = None
 def open_window():

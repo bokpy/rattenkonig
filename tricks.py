@@ -8,6 +8,7 @@ from collections import defaultdict
 import glob
 import re
 import asyncio
+import subprocess
 import atexit
 
 from pygments.lexer import combined
@@ -38,6 +39,17 @@ EL_WHEEL_HI_RES', 11), ('REL_HWHEEL_HI_RES', 12)],
  ('EV_MSC', 4): [('MSC_SCAN', 4)]
  }
  '''
+def service_call(*args,print_error=True):
+	try:
+		info = subprocess.check_output(args)
+	except subprocess.SubprocessError as e:
+		if print_error:
+			print(f'{args} failed')
+			print(f'is {args[0]} intalled?')
+			print(f'subprocess.SubprocessError {e}')
+		return None
+	str_info = info.decode('utf-8')
+	return str_info.splitlines()
 
 class CapabilityDict(dict):
     #event_type_set = (ec.EV_REL, ec.EV_KEY, ec.EV_LED)
