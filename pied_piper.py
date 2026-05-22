@@ -5,7 +5,7 @@ import os
 import signal
 import sys
 #import psutil
-from logging import exception
+#from logging import exception
 
 import time
 from evdev import InputDevice, categorize, ecodes as ec, list_devices
@@ -18,10 +18,11 @@ from Xlib import X, display
 from Xlib.ext import randr
 import atexit
 args = mouseOptions.parser.parse_args()
-from icecream import ic
 import json
 
+from icecream import ic
 ic.configureOutput(includeContext=True)
+
 DEBUG=print
 fd_to_troupe={}
 troupe_devices=[]
@@ -59,44 +60,44 @@ def kill_device_blocking_pids():
 		os.kill(pid, signal.SIGTERM)
 		time.sleep(.4)
 
-def get_active_window_info():
-	d = display.Display()
-	root = d.screen().root
-	# Get the atom for the active window
-	window_id_atom = d.get_atom('_NET_ACTIVE_WINDOW')
-	window_id_prop = root.get_full_property(window_id_atom, X.AnyPropertyType)
-	if not window_id_prop:
-		return ('Bad','Bad','Bad')
-	window_id = window_id_prop.value[0]
-	window_obj = d.create_resource_object('window', window_id)
-	# Get Window Title
-	# We check both _NET_WM_NAME (UTF-8) and WM_NAME (STRING)
-	title = "Unknown"
-	for atom_name in ['_NET_WM_NAME', 'WM_NAME']:
-		atom = d.get_atom(atom_name)
-		prop = window_obj.get_full_property(atom, 0)
-		if prop:
-			title = prop.value
-			if isinstance(title, bytes):
-				title = title.decode('utf-8', 'ignore')
-			break
-	# Get Window Class
-	# WM_CLASS usually returns a list/tuple: (instance, class)
-	cls_prop = window_obj.get_full_property(d.get_atom('WM_CLASS'), X.AnyPropertyType)
-	#cls_prop:
-	# <GetProperty serial = 23
-	# , data = {'sequence_number': 23
-	# , 'property_type': 31
-	# , 'bytes_after': 0
-	# , 'value': (8, b'jetbrains-pycharm\x00jetbrains-pycharm\x00')}
-	# , error = None>
-	wininf = (title ,'','')
-	if not cls_prop:
-		return wininf
-	cc = cls_prop.value.decode('utf-8', 'ignore')
-	#print(f'{cc=}')
-	cc = cc.split('\x00')
-	return ( title,cc[0],cc[1])
+# def get_active_window_info():
+# 	d = display.Display()
+# 	root = d.screen().root
+# 	# Get the atom for the active window
+# 	window_id_atom = d.get_atom('_NET_ACTIVE_WINDOW')
+# 	window_id_prop = root.get_full_property(window_id_atom, X.AnyPropertyType)
+# 	if not window_id_prop:
+# 		return ('Bad','Bad','Bad')
+# 	window_id = window_id_prop.value[0]
+# 	window_obj = d.create_resource_object('window', window_id)
+# 	# Get Window Title
+# 	# We check both _NET_WM_NAME (UTF-8) and WM_NAME (STRING)
+# 	title = "Unknown"
+# 	for atom_name in ['_NET_WM_NAME', 'WM_NAME']:
+# 		atom = d.get_atom(atom_name)
+# 		prop = window_obj.get_full_property(atom, 0)
+# 		if prop:
+# 			title = prop.value
+# 			if isinstance(title, bytes):
+# 				title = title.decode('utf-8', 'ignore')
+# 			break
+# 	# Get Window Class
+# 	# WM_CLASS usually returns a list/tuple: (instance, class)
+# 	cls_prop = window_obj.get_full_property(d.get_atom('WM_CLASS'), X.AnyPropertyType)
+# 	#cls_prop:
+# 	# <GetProperty serial = 23
+# 	# , data = {'sequence_number': 23
+# 	# , 'property_type': 31
+# 	# , 'bytes_after': 0
+# 	# , 'value': (8, b'jetbrains-pycharm\x00jetbrains-pycharm\x00')}
+# 	# , error = None>
+# 	wininf = (title ,'','')
+# 	if not cls_prop:
+# 		return wininf
+# 	cc = cls_prop.value.decode('utf-8', 'ignore')
+# 	#print(f'{cc=}')
+# 	cc = cc.split('\x00')
+# 	return ( title,cc[0],cc[1])
 
 def check_alarm( event):
 	global stopper_count, stopper_limit
