@@ -1,0 +1,405 @@
+#!/bin/python3
+import os
+import sys
+import threading
+import hid_device as hd
+import re
+import json
+import time
+from Xlib import X, display
+import asyncio
+from PyQt6 import QtCore, QtGui, QtWidgets
+from PyQt6.QtGui import (
+QIcon
+,QAction
+)
+from PyQt6.QtCore import (
+ Qt
+,QObject
+,pyqtSignal
+,pyqtSlot
+,QThread
+)
+from PyQt6.QtWidgets import (
+ QApplication
+,QMainWindow
+,QTreeWidgetItem
+,QWidget
+,QTableWidgetItem
+,QHeaderView
+)
+from PyQt6 import uic
+#from qasync import asyncSlot, QEventLoop, QApplication
+#from ui.eventSelector import Ui_MainWindow
+from PyQt6.QtWidgets import QSizePolicy as sp
+EXPANDING=sp.Policy.Expanding
+FIXED=sp.Policy.Fixed
+IGNORED =sp.Policy.Ignored
+MAXIMUM=sp.Policy. Maximum
+MINIMUM=sp.Policy.Minimum
+MINIMUMEXPANDING=sp.Policy.MinimumExpanding
+PREFERRED=sp.Policy.Preferred
+
+DEVICE_TO_SETUP=None
+
+from icecream import ic
+ic.configureOutput(includeContext=True)
+
+class WorkerEventReader(QObject):
+	# class class
+	signal_new_window  = pyqtSignal(str,str)
+	# event code event name
+	signal_new_event      = pyqtSignal(int,str)
+	#finished         = pyqtSignal()
+	signal_paused = pyqtSignal()
+	
+	def __init__(S):
+		super().__init__()
+		S.running = True
+		
+	def pause(S):
+		global DEVICE_TO_SETUP
+		DEVICE_TO_SETUP=None
+		
+	def change_device(S,device):
+		ic()
+		global DEVICE_TO_SETUP
+		dev = DEVICE_TO_SETUP
+		if dev:
+			dev.disconnect()
+			dev = None
+		device.connect()
+		DEVICE_TO_SETUP = device
+		
+	def run(S):
+		global  DEVICE_TO_SETUP
+		#if not S.running or not S.device:
+		# if not S.device:
+		# 	time.sleep(0.1)
+		# 	S.signal_paused.emit()
+		# 	return
+		
+		while S.running:
+			if not DEVICE_TO_SETUP:
+				S.signal_paused.emit()
+				time.sleep(.4)
+				continue
+			event = DEVICE_TO_SETUP.inputdevice.read_one()
+			if not event or not event.type or event.type == 4:
+				time.sleep(0.1)
+				continue
+			
+			name = hd.name_event(event)
+			if DEVICE_TO_SETUP.eventset.stores_new((event.code,name)):
+				S.signal_new_event.emit(event.code,name)
+			
+			c1,c2=hd.get_active_class_class()
+			if DEVICE_TO_SETUP.windowset.stores_new((c1,c2)):
+				S.signal_new_window.emit(c1,c2)
+			time.sleep(0.1)
+		print('EventReader.run() stopped.')
+		#S.running=False
+		#S.finished.emit()
+
+class DeviceSetupGui(QMainWindow):
+	
+	DEVICEPAGE,EVENTPAGE=0,1
+	
+	def __init__(S):
+		super().__init__()
+		S.setWindowTitle('HID Device Configuration Setup')
+		S.resize(800, 600)
+		S.setWindowIcon(QIcon('./data/Pied Piper 1.jpeg'))
+		
+		S.page_stack=QtWidgets.QStackedWidget(S)
+		S.setCentralWidget(S.page_stack)
+		S.device_selector = DeviceSelectorGui()
+		S.event_handler   = EventsAndWindowsGui()
+		
+		S.page_stack.insertWidget(S.DEVICEPAGE,S.device_selector)
+		S.page_stack.insertWidget(S.EVENTPAGE ,S.event_handler)
+		
+		#S.device_selector.quit_button.clicked.connect(S.save)
+		S.device_selector.ok_button.clicked.connect(S.page_toggle)
+		S.event_handler.ok_button.clicked.connect(S.page_toggle)
+		
+		S.device_selector.quit_button.clicked.connect(S.quit)
+		S.event_handler.quit_button.clicked.connect(S.quit)
+		
+		#S.page_toggle()
+		# S.OkBut.clicked.connect(S.stores_and_leave)
+		# S.LeaveBut=gui.LeaveButton
+		# S.LeaveBut.clicked.connect(S.leave)
+		# S.save_button=gui.save_buttonton
+		# S.save_button.clicked.connect(S.save)
+		# S.TestBut=gui.TestButton
+		# S.TestBut.clicked.connect(S._page_toggle)
+		# S.TestBut2=gui.TestButton_2
+		# S.TestBut2.clicked.connect(S._page_toggle)
+	
+	def quit(S):
+		S.device_selector.close()
+		S.event_handler.stop()
+		S.close()
+	
+	# def actualize_event(S):
+	# 	global DEVICE_TO_SETUP
+	# 	dss = S.device_selector.selected
+	# 	ic(dss,DEVICE_TO_SETUP)
+	# 	S.event_handler.event_reader.change_device(dss)
+	# 	S.event_handler.update_table()
+	#
+	def page_toggle(S):
+		if not S.device_selector.selected:
+			print(f'No selected device.')
+			return
+		page={S.EVENTPAGE:'event page',S.DEVICEPAGE:'device page'}
+		if S.page_stack.currentIndex() == S.DEVICEPAGE:
+			S.event_handler.change_device(S.device_selector.selected)
+			S.page_stack.setCurrentIndex(S.EVENTPAGE)
+			S.setWindowTitle(f'HID "{DEVICE_TO_SETUP.event_by_id}"')
+		else:
+			S.page_stack.setCurrentIndex(S.DEVICEPAGE)
+			S.setWindowTitle(f'Device Selection')
+		print(f'current page_stack {page[S.page_stack.currentIndex()]}')
+		S.update()
+		
+class EventsAndWindowsGui(QtWidgets.QWidget):
+#class EventsAndWindowsGui(QMainWindow):
+	def __init__(S):
+		super().__init__()
+		S.setObjectName("DevicesAndWindows")
+		S.resize(800, 600)
+		S.setWindowIcon(QIcon('./data/Pied Piper 1.jpeg'))
+		layout=QtWidgets.QVBoxLayout(S)
+		et = S.eventTable=QtWidgets.QTableWidget(S)
+		et.setColumnCount(5)
+		to_content=QHeaderView.ResizeMode.ResizeToContents
+		et.horizontalHeader().setSectionResizeMode(0,to_content)
+		et.horizontalHeader().setSectionResizeMode(1,to_content)
+		et.horizontalHeader().setSectionResizeMode(2,to_content)
+		et.horizontalHeader().setSectionResizeMode(3,to_content)
+		et.horizontalHeader().setStretchLastSection(True) #horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+		et.setHorizontalHeaderLabels(['code','event','class','class'])
+		layout.addWidget(et)
+		
+		S.event_table_row=S.window_table_row=0
+
+		S.commit_button,S.save_button, S.quit_button, S.ok_button\
+			=add_buttons(('Commit','Save','Quit', 'OK'), S, layout)
+		S.setLayout(layout)
+		
+		#ok_button.clicked.connect(S.stop)
+		#S.quit_button.clicked.connect(S.stop)
+		S.save_button.clicked.connect(S.save)
+		S.commit_button.clicked.connect(S.ad_mutations)
+		# event_reader thread setup
+		erW = S.event_reader=WorkerEventReader()
+		erT = S.event_reader_thread=QThread()
+		erW.signal_new_event.connect(S.display_event)
+		erW.signal_new_window.connect(S.display_classes)
+		erW.moveToThread(erT)
+		erT.started.connect(erW.run)
+		erT.start()
+		
+	def stop(S):
+		S.event_reader.running=False
+		S.event_reader_thread.quit()
+		S.event_reader_thread.wait()
+		del S.event_reader_thread
+		S.close()
+
+	def stay_on_top_toggle(S):
+		pass
+		# if not saved_window_flags:
+		# 	saved_window_flags=window.windowFlags()
+		# if on_top:
+		# 	on_top_button.setText('Down')
+		# 	window.setWindowFlags(saved_window_flags)
+		# else:
+		# 	on_top_button.setText('Up')
+		# 	flags = saved_window_flags | Qt.WindowType.WindowStaysOnTopHint
+		# 	window.setWindowFlags(flags)
+		# on_top=not on_top
+		# window.show()
+		
+
+	def change_device(S,device):
+		ic()
+		global DEVICE_TO_SETUP
+		S.event_reader.change_device(device)
+		if not DEVICE_TO_SETUP:
+			return
+		S.event_table_row=S.window_table_row=0
+		S.eventTable.clear()
+		for item in DEVICE_TO_SETUP.eventset:
+			S.display_event(*item)
+		for item in DEVICE_TO_SETUP.windowset:
+			S.display_classes(*item)
+		S.update()
+		
+	def ad_mutations(S):
+		global DEVICE_TO_SETUP
+		DEVICE_TO_SETUP.update_config()
+		S.commit_button.setText('Commited')
+		print(f'ad_mutations{DEVICE_TO_SETUP.event_by_id})')
+	
+		
+	def leave(S):
+		global DEVICE_TO_SETUP
+		print(f'stores_and_leave({DEVICE_TO_SETUP.event_by_id})')
+		S.close()
+	
+	def save(S):
+		global DEVICE_TO_SETUP#print(f'save({WorkerEventReader.device.name})')
+		DEVICE_TO_SETUP.write_sets()
+		S.save_button.setText('Saved')
+		S.commit_button.setText('Commit')
+		
+	def display_event(S,code, name):
+		
+		print(f'display_event({code:03d},"{name}")')
+		et=S.eventTable
+		if et.rowCount()<= S.event_table_row:
+			et.insertRow(S.event_table_row)
+		strcode=f'{code:03d}'
+		et.setItem(S.event_table_row, 0, QTableWidgetItem(strcode))
+		et.setItem(S.event_table_row, 1, QTableWidgetItem(name))
+		S.save_button.setText('save')
+		# some scrolling if needed
+		# index=et.model().index(S.event_table_row, 0)
+		# et.scrollTo(index)
+		et.update()
+		S.event_table_row+=1
+		
+	def display_classes(S,prime, second):
+		print(f'display_classes("{prime }", "{second}")')
+		et=S.eventTable
+		if et.rowCount()<=S.window_table_row:
+			et.insertRow(S.window_table_row)
+		et.setItem(S.window_table_row, 2, QTableWidgetItem(prime))
+		et.setItem(S.window_table_row, 3, QTableWidgetItem(second))
+		S.save_button.setText('save')
+		
+		# some scrolling if needed
+		# index=et.model().index(S.window_table_row, 2)
+		# et.scrollTo(index)
+		et.update()
+		S.window_table_row+=1
+
+def add_buttons(names,window,layout):
+	buttons=[]
+	def make_button(name):
+		button = QtWidgets.QPushButton(parent=window)
+		button.setText(name)
+		window.button_layout.addWidget(button)
+		buttons.append(button)
+	
+	spacer=QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Minimum)
+	layout.addItem(spacer)
+	window.button_layout=QtWidgets.QHBoxLayout()
+	layout.addItem(window.button_layout)
+	spacer=QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
+	window.button_layout.addItem(spacer)
+	
+	#Single button
+	if isinstance(names,str):
+		make_button(names)
+		return buttons[0]
+
+	# buttons in a row
+	for label in names:
+		make_button(label)
+	return buttons
+
+class DeviceSelectorGui(QtWidgets.QWidget):
+	HIDEVICES=None
+	def __init__(S):
+		super().__init__()
+		#S.QWidget.ser(windowTitle='HID devices by id.')
+		layout = QtWidgets.QVBoxLayout()
+		S.setLayout(layout)
+		if not S.HIDEVICES:
+			S.HIDEVICES=hd.get_hid_devices()
+
+		S.hiddict={}
+		for hid in S.HIDEVICES:
+			S.hiddict[hid.event_by_id] = hid
+			radioBut = QtWidgets.QRadioButton(hid.event_by_id,parent=S)
+			layout.addWidget(radioBut)
+			radioBut.toggled.connect(S.update)
+		S.selected=None
+	
+		S.quit_button,S.ok_button = add_buttons(('Quit','OK'),S,layout)
+		S.ok_button.clicked.connect(S.leave)
+		#S.quit_button.clicked.connect(S.close)
+	
+	def update(S):
+		rb=S.sender()
+		if rb.isChecked():
+			S.selected=S.hiddict[rb.text()]
+			print(f'Button {rb.text()} selected')
+			
+	def leave(S):
+		def show_warning():
+			msg = QtWidgets.QMessageBox(S)
+			msg.setWindowTitle("Warning")
+			msg.setText("Select a Device first or Quit")
+			msg.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok)
+			msg.setStyleSheet("""
+		                QMessageBox {
+		                    background-color: #FF0000;
+		                    color: #FFFF00;
+		                    font-family: monospace;
+		                    font-size: 16px;
+		                    border: 4px solid #000000;
+		                }
+		                /* Force text color on the message label */
+                QMessageBox > QLabel {
+                    color: #FFFF00;
+                    background-color: #FF0000;
+                }
+                QMessageBox > QLabel#qt-message-box-label {
+                    color: #FFFF00;
+                }
+		                QPushButton {
+		                    background-color: #555555;
+		                    color: #FFFF00;
+		                    border: 2px solid #000000;
+		                    padding: 5px 10px;
+		                    font-family: monospace;
+		                }
+		                QPushButton:hover {
+		                    background-color: #777777;
+		                }
+		            """)
+			msg.exec()
+			
+		if not S.selected:
+			show_warning()
+			return
+		S.close()
+
+def main():
+	
+	app = QApplication(sys.argv)
+	test=2
+	if test==0:
+		WorkerEventReader.device = hd.HID_Device('usb-Nordic_2.4G_Wireless_Receiver-if01-event-mouse')
+		WorkerEventReader.device.connect()
+		eventWindowWindow = EventsAndWindowsGui()
+		eventWindowWindow.update_table()
+		eventWindowWindow.show()
+	elif test==1:
+		selectorWindow = DeviceSelectorGui()
+		selectorWindow.show()
+	elif test==2:
+		setupWindow = DeviceSetupGui()
+		setupWindow.show()
+	
+	app.exec()
+	
+
+if __name__ == '__main__':
+	main()
+	
