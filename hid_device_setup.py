@@ -110,6 +110,7 @@ class DeviceSetupGui(QMainWindow):
 		S.setWindowTitle('HID Device Configuration Setup')
 		S.resize(800, 600)
 		S.setWindowIcon(QIcon('./data/Pied Piper 1.jpeg'))
+		S.on_top=False
 		
 		S.page_stack=QtWidgets.QStackedWidget(S)
 		S.setCentralWidget(S.page_stack)
@@ -126,22 +127,25 @@ class DeviceSetupGui(QMainWindow):
 		S.device_selector.quit_button.clicked.connect(S.quit)
 		S.event_handler.quit_button.clicked.connect(S.quit)
 		
-		#S.page_toggle()
-		# S.OkBut.clicked.connect(S.stores_and_leave)
-		# S.LeaveBut=gui.LeaveButton
-		# S.LeaveBut.clicked.connect(S.leave)
-		# S.save_button=gui.save_buttonton
-		# S.save_button.clicked.connect(S.save)
-		# S.TestBut=gui.TestButton
-		# S.TestBut.clicked.connect(S._page_toggle)
-		# S.TestBut2=gui.TestButton_2
-		# S.TestBut2.clicked.connect(S._page_toggle)
+		S.device_selector.ontop_button.clicked.connect(S.stay_on_top)
+		S.event_handler.ontop_button.clicked.connect(S.stay_on_top)
 	
 	def quit(S):
 		S.device_selector.close()
 		S.event_handler.stop()
 		S.close()
 	
+	def stay_on_top(S):
+		if S.on_top:
+			S.setWindowFlags(Qt.WindowType.Window)
+		else:
+			S.setWindowFlags(
+			Qt.WindowType.Window|
+			Qt.WindowType.WindowStaysOnTopHint|
+			Qt.WindowType.X11BypassWindowManagerHint
+			)
+		S.on_top = not S.on_top
+		S.show()
 	# def actualize_event(S):
 	# 	global DEVICE_TO_SETUP
 	# 	dss = S.device_selector.selected
@@ -185,8 +189,8 @@ class EventsAndWindowsGui(QtWidgets.QWidget):
 		
 		S.event_table_row=S.window_table_row=0
 
-		S.commit_button,S.save_button, S.quit_button, S.ok_button\
-			=add_buttons(('Commit','Save','Quit', 'OK'), S, layout)
+		S.ontop_button,S.commit_button,S.save_button, S.quit_button, S.ok_button\
+			=add_buttons(('Ontop','Commit','Save','Quit', 'OK'), S, layout)
 		S.setLayout(layout)
 		
 		#ok_button.clicked.connect(S.stop)
@@ -240,11 +244,11 @@ class EventsAndWindowsGui(QtWidgets.QWidget):
 		
 	def ad_mutations(S):
 		global DEVICE_TO_SETUP
+		S.save()
 		DEVICE_TO_SETUP.update_config()
 		S.commit_button.setText('Commited')
 		print(f'ad_mutations{DEVICE_TO_SETUP.event_by_id})')
 	
-		
 	def leave(S):
 		global DEVICE_TO_SETUP
 		print(f'stores_and_leave({DEVICE_TO_SETUP.event_by_id})')
@@ -265,7 +269,8 @@ class EventsAndWindowsGui(QtWidgets.QWidget):
 		strcode=f'{code:03d}'
 		et.setItem(S.event_table_row, 0, QTableWidgetItem(strcode))
 		et.setItem(S.event_table_row, 1, QTableWidgetItem(name))
-		S.save_button.setText('save')
+		S.save_button.setText('Save')
+		S.commit_button.setText('Commit')
 		# some scrolling if needed
 		# index=et.model().index(S.event_table_row, 0)
 		# et.scrollTo(index)
@@ -279,7 +284,8 @@ class EventsAndWindowsGui(QtWidgets.QWidget):
 			et.insertRow(S.window_table_row)
 		et.setItem(S.window_table_row, 2, QTableWidgetItem(prime))
 		et.setItem(S.window_table_row, 3, QTableWidgetItem(second))
-		S.save_button.setText('save')
+		S.save_button.setText('Save')
+		S.commit_button.setText('Commit')
 		
 		# some scrolling if needed
 		# index=et.model().index(S.window_table_row, 2)
@@ -330,7 +336,7 @@ class DeviceSelectorGui(QtWidgets.QWidget):
 			radioBut.toggled.connect(S.update)
 		S.selected=None
 	
-		S.quit_button,S.ok_button = add_buttons(('Quit','OK'),S,layout)
+		S.ontop_button,S.quit_button,S.ok_button = add_buttons(('Ontop','Quit','OK'),S,layout)
 		S.ok_button.clicked.connect(S.leave)
 		#S.quit_button.clicked.connect(S.close)
 	
