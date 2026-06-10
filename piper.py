@@ -1,11 +1,12 @@
 #!/usr/bin/python3
 from evdev import UInput, ecodes as ec
-import atexit
+import evdev as ev
 import time
-import ladders as ladder
-import  tracer as trace
-from ladders import ascii_to_evdev as asc2ev
-import toys as toy
+import atexit
+# import ladders as ladder
+# import  tracer as trace
+#from ladders import ascii_to_evdev as asc2ev
+#import toys as toy
 from icecream import ic
 ic.configureOutput(includeContext=True)
 KEYDELAY=.01
@@ -45,6 +46,110 @@ Notes
 Justness estimate: 92% — typical on most Linux distributions using udev.
 
 """
+asc2ev = {
+    0: (None, False)
+    , 7: (None, False)
+    , 8: (14, False)
+    , 9: (15, False)
+    , 10: (28, False)
+    , 13: (28, False)
+    , 27: (1, False)
+    , 32: (57, False)
+    , 48: (11, False)  # 0
+    , 49: (2, False)  # 1
+    , 50: (3, False)  # 2
+    , 51: (4, False)  # 3
+    , 52: (5, False)  # 4
+    , 53: (6, False)  # 5
+    , 54: (7, False)  # 6
+    , 55: (8, False)  # 7
+    , 56: (9, False)  # 8
+    , 57: (10, False)  # 9
+    , 33: (2, True)  # !
+    , 64: (3, True)  # @
+    , 35: (4, True)  # #
+    , 36: (5, True)  # $
+    , 37: (6, True)  # %
+    , 94: (7, True)  # ^
+    , 38: (8, True)  # &
+    , 42: (9, True)  # *
+    , 40: (10, True)  # (
+    , 41: (11, True)  # )
+    , 97: (30, False)  # a
+    , 98: (48, False)  # b
+    , 99: (46, False)  # c
+    , 100: (32, False)  # d
+    , 101: (18, False)  # e
+    , 102: (33, False)  # f
+    , 103: (34, False)  # g
+    , 104: (35, False)  # h
+    , 105: (23, False)  # i
+    , 106: (36, False)  # j
+    , 107: (37, False)  # k
+    , 108: (38, False)  # l
+    , 109: (50, False)  # m
+    , 110: (49, False)  # n
+    , 111: (24, False)  # o
+    , 112: (25, False)  # p
+    , 113: (16, False)  # q
+    , 114: (19, False)  # r
+    , 115: (31, False)  # s
+    , 116: (20, False)  # t
+    , 117: (22, False)  # u
+    , 118: (47, False)  # v
+    , 119: (17, False)  # w
+    , 120: (45, False)  # x
+    , 121: (21, False)  # y
+    , 122: (44, False)  # z
+    , 65: (30, True)  # A
+    , 66: (48, True)  # B
+    , 67: (46, True)  # C
+    , 68: (32, True)  # D
+    , 69: (18, True)  # E
+    , 70: (33, True)  # F
+    , 71: (34, True)  # G
+    , 72: (35, True)  # H
+    , 73: (23, True)  # I
+    , 74: (36, True)  # J
+    , 75: (37, True)  # K
+    , 76: (38, True)  # L
+    , 77: (50, True)  # M
+    , 78: (49, True)  # N
+    , 79: (24, True)  # O
+    , 80: (25, True)  # P
+    , 81: (16, True)  # Q
+    , 82: (19, True)  # R
+    , 83: (31, True)  # S
+    , 84: (20, True)  # T
+    , 85: (22, True)  # U
+    , 86: (47, True)  # V
+    , 87: (17, True)  # W
+    , 88: (45, True)  # X
+    , 89: (21, True)  # Y
+    , 90: (44, True)  # Z
+    , 45: (12, False)  # -
+    , 95: (12, True)  # _
+    , 61: (13, False)  # =
+    , 43: (13, True)  # +
+    , 91: (26, False)  # [
+    , 123: (26, True)  # {
+    , 93: (27, False)  # ]
+    , 125: (27, True)  # }
+    , 92: (43, False)  # \
+    , 124: (43, True)  # |
+    , 59: (39, False)  # ;
+    , 58: (39, True)  # :
+    , 39: (40, False)  # '
+    , 34: (40, True)  # "
+    , 44: (51, False)  # ,
+    , 60: (51, True)  # <
+    , 46: (52, False)  # .
+    , 62: (52, True)  # >
+    , 47: (53, False)  # /
+    , 63: (53, True)  # ?
+    , 96: (41, False)  # `
+    , 126: (41, True)  # ~
+}
 
 def is_iterable(obj):
 	try:
@@ -55,7 +160,7 @@ def is_iterable(obj):
 
 #caps={ec.EV_KEY:ladder.ev_key_codes,ec.EV_REL:ladder.ev_rel_codes}
 
-caps = {ec.EV_LED:ladder.ev_led_codes,ec.EV_KEY: ladder.ev_key_codes, ec.EV_REL: ladder.ev_rel_codes}
+#caps = {ec.EV_LED:ladder.ev_led_codes,ec.EV_KEY: ladder.ev_key_codes, ec.EV_REL: ladder.ev_rel_codes}
 
 class PiedPiper(UInput):
 	"""class writing the mouse and keyboard events"""
@@ -66,17 +171,18 @@ class PiedPiper(UInput):
 			print(f'There should only bee one Pied Piper.')
 			exit(666)
 		try:
-			super().__init__(caps,name="Pied Piper of Hamelin")
+			#super().__init__(caps,name="Pied Piper of Hamelin")
+			super().__init__(name="Pied Piper of Hamelin")
 		except PermissionError as e:
 			print(help_text)
 			exit (e.errno)
 		PiedPiper.piper=S
 		#S.pressed_keys=None
-		trace.open_window()
+		#trace.open_window()
 		atexit.register(S.leave_hamelin)
 
 	def leave_hamelin(S):
-		trace.close_window()
+		#trace.close_window()
 		S.close()
 		print(f'Pied Piper left Hamelin.')
 
@@ -100,7 +206,7 @@ class PiedPiper(UInput):
 		S.syn()
 
 	def default(S,event):
-		print(toy.str_event(event))
+		print(f'PiedPiper.default({ev.categorize(event)})')
 
 	def simultaneous_keys(S,*args):
 		S.press_and_hold(*args)
@@ -175,26 +281,26 @@ class PiedPiper(UInput):
 		time.sleep(snooze)
 		return S
 
-	def id_active_window(S):
-		return trace.active_window_name_and_classes()
+	# def id_active_window(S):
+	# 	return trace.active_window_name_and_classes()
+	#
+	# def match_active_window(S,name=None,class_name=None,class_class=None,show=False):
+	# 	n,cn,cc=trace.active_window_name_and_classes()
+	# 	#n,cn,cc=trace.mouse_over_window_name_and_classes()
+	# 	if (not n) or (n == "Bad Window"):
+	# 		return False
+	# 	if show:
+	# 		print(f'"{n}","{cn}","{cc}"')
+	# 	if name and (not name in n ):
+	# 		return False
+	# 	if class_name and (not class_name in cn ):
+	# 		return False
+	# 	if class_class and (not class_class in cc):
+	# 		return False
+	# 	return True
 
-	def match_active_window(S,name=None,class_name=None,class_class=None,show=False):
-		n,cn,cc=trace.active_window_name_and_classes()
-		#n,cn,cc=trace.mouse_over_window_name_and_classes()
-		if (not n) or (n == "Bad Window"):
-			return False
-		if show:
-			print(f'"{n}","{cn}","{cc}"')
-		if name and (not name in n ):
-			return False
-		if class_name and (not class_name in cn ):
-			return False
-		if class_class and (not class_class in cc):
-			return False
-		return True
-
-	def id_mouse_window(S):
-		return trace.mouse_over_window_name_and_classes()
+	# def id_mouse_window(S):
+	# 	return trace.mouse_over_window_name_and_classes()
 
 def test_piper():
 	piper=PiedPiper()
@@ -223,16 +329,16 @@ def test_message():
 	ratter.message('Hello World!')
 	print('Message End:')
 
-def test_trace():
-	piper=PiedPiper()
-	count = 5
-	last=''
-	while count>0:
-		n,cn,cc=piper.id_active_window()
-		if n != last:
-			count-=1
-			last=n
-			print(f'{n},{cn},{cc}')
+# def test_trace():
+# 	piper=PiedPiper()
+# 	count = 5
+# 	last=''
+# 	while count>0:
+# 		n,cn,cc=piper.id_active_window()
+# 		if n != last:
+# 			count-=1
+# 			last=n
+# 			print(f'{n},{cn},{cc}')
 
 def test_hold_keys():
 	time.sleep(3)

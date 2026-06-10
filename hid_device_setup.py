@@ -167,7 +167,7 @@ class DeviceSetupGui(QMainWindow):
 			S.setWindowTitle(f'Device Selection')
 		print(f'current page_stack {page[S.page_stack.currentIndex()]}')
 		S.update()
-		
+
 class EventsAndWindowsGui(QtWidgets.QWidget):
 #class EventsAndWindowsGui(QMainWindow):
 	def __init__(S):
@@ -179,12 +179,12 @@ class EventsAndWindowsGui(QtWidgets.QWidget):
 		et = S.eventTable=QtWidgets.QTableWidget(S)
 		et.setColumnCount(5)
 		to_content=QHeaderView.ResizeMode.ResizeToContents
-		et.horizontalHeader().setSectionResizeMode(0,to_content)
-		et.horizontalHeader().setSectionResizeMode(1,to_content)
-		et.horizontalHeader().setSectionResizeMode(2,to_content)
-		et.horizontalHeader().setSectionResizeMode(3,to_content)
+		et.horizontalHeader().setSectionResizeMode( 0 ,to_content)
+		et.horizontalHeader().setSectionResizeMode( 1 ,to_content)
+		et.horizontalHeader().setSectionResizeMode( 2 ,to_content)
+		et.horizontalHeader().setSectionResizeMode( 3 ,to_content)
 		et.horizontalHeader().setStretchLastSection(True) #horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-		et.setHorizontalHeaderLabels(['code','event','class','class'])
+		et.setHorizontalHeaderLabels(['code','event','number','class','class'])
 		layout.addWidget(et)
 		
 		S.event_table_row=S.window_table_row=0
@@ -212,21 +212,6 @@ class EventsAndWindowsGui(QtWidgets.QWidget):
 		S.event_reader_thread.wait()
 		del S.event_reader_thread
 		S.close()
-
-	def stay_on_top_toggle(S):
-		pass
-		# if not saved_window_flags:
-		# 	saved_window_flags=window.windowFlags()
-		# if on_top:
-		# 	on_top_button.setText('Down')
-		# 	window.setWindowFlags(saved_window_flags)
-		# else:
-		# 	on_top_button.setText('Up')
-		# 	flags = saved_window_flags | Qt.WindowType.WindowStaysOnTopHint
-		# 	window.setWindowFlags(flags)
-		# on_top=not on_top
-		# window.show()
-		
 
 	def change_device(S,device):
 		ic()
@@ -330,8 +315,9 @@ class DeviceSelectorGui(QtWidgets.QWidget):
 
 		S.hiddict={}
 		for hid in S.HIDEVICES:
-			S.hiddict[hid.event_by_id] = hid
-			radioBut = QtWidgets.QRadioButton(hid.event_by_id,parent=S)
+			event_id = hid.event_no + '   ' +hid.event_by_id
+			S.hiddict[event_id] = hid
+			radioBut = QtWidgets.QRadioButton(event_id,parent=S)
 			layout.addWidget(radioBut)
 			radioBut.toggled.connect(S.update)
 		S.selected=None
