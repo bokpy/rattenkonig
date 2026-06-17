@@ -45,6 +45,18 @@ DEVICE_TO_SETUP=None
 from icecream import ic
 ic.configureOutput(includeContext=True)
 
+
+def limit_string_len(string,length):
+	ls=len(string)
+	if ls<=length:
+		return string
+	over_length = ls - length
+	if over_length < 3:
+		return string[:-over_length]
+	lfront=length//2
+	lback=length-lfront
+	return string[:lfront-2] + '...' + string[1-lback:]
+
 class WorkerEventReader(QObject):
 	# class class
 	signal_new_window  = pyqtSignal(str,str)
@@ -61,13 +73,17 @@ class WorkerEventReader(QObject):
 		global DEVICE_TO_SETUP
 		DEVICE_TO_SETUP=None
 		
-	def change_device(S,device):
-		ic()
+	def disconnect_setup_device(S):
 		global DEVICE_TO_SETUP
-		dev = DEVICE_TO_SETUP
-		if dev:
-			dev.disconnect()
-			dev = None
+		if DEVICE_TO_SETUP:
+			DEVICE_TO_SETUP.disconnect()
+		DEVICE_TO_SETUP = None
+		
+	def set_device(S,device):
+		global DEVICE_TO_SETUP
+		S.disconnect_setup_device()
+		if not device:
+			return
 		device.connect()
 		DEVICE_TO_SETUP = device
 		
@@ -93,9 +109,9 @@ class WorkerEventReader(QObject):
 			if DEVICE_TO_SETUP.eventset.stores_new((event.code,name)):
 				S.signal_new_event.emit(event.code,name)
 			
-			c1,c2=hd.get_active_class_class()
-			if DEVICE_TO_SETUP.windowset.stores_new((c1,c2)):
-				S.signal_new_window.emit(c1,c2)
+			title,c1,c2=hd.get_active_title_class_class()
+			if DEVICE_TO_SETUP.windowset.stores_new((c1,title)):
+				S.signal_new_window.emit(c1,title)
 			time.sleep(0.1)
 		print('EventReader.run() stopped.')
 		#S.running=False
@@ -114,25 +130,29 @@ class DeviceSetupGui(QMainWindow):
 		
 		S.page_stack=QtWidgets.QStackedWidget(S)
 		S.setCentralWidget(S.page_stack)
-		S.device_selector = DeviceSelectorGui()
-		S.event_handler   = EventsAndWindowsGui()
+		S.device_selector_gui = DeviceSelectorGui()
+		S.key_class_sel_gui      = KeyClassGui()
 		
-		S.page_stack.insertWidget(S.DEVICEPAGE,S.device_selector)
-		S.page_stack.insertWidget(S.EVENTPAGE ,S.event_handler)
+		S.page_stack.insertWidget(S.DEVICEPAGE,S.device_selector_gui)
+		S.page_stack.insertWidget(S.EVENTPAGE ,S.key_class_sel_gui)
 		
-		#S.device_selector.quit_button.clicked.connect(S.save)
-		S.device_selector.ok_button.clicked.connect(S.page_toggle)
-		S.event_handler.ok_button.clicked.connect(S.page_toggle)
+		S.key_class_sel_gui.eventTable.setHorizontalHeaderLabels(['code','event','number','class','class'])
 		
-		S.device_selector.quit_button.clicked.connect(S.quit)
-		S.event_handler.quit_button.clicked.connect(S.quit)
+		#S.device_selector_gui.quit_button.clicked.connect(S.save)
+		S.device_selector_gui.ok_button.clicked.connect(S.page_toggle)
+		S.key_class_sel_gui.back_button.clicked.connect(S.page_toggle)
 		
-		S.device_selector.ontop_button.clicked.connect(S.stay_on_top)
-		S.event_handler.ontop_button.clicked.connect(S.stay_on_top)
+		S.device_selector_gui.quit_button.clicked.connect(S.quit)
+		S.key_class_sel_gui.quit_button.clicked.connect(S.quit)
+		
+		S.device_selector_gui.ontop_button.clicked.connect(S.stay_on_top)
+		S.key_class_sel_gui.ontop_button.clicked.connect(S.stay_on_top)
+		S.update()
+		S.layout().update()
 	
 	def quit(S):
-		S.device_selector.close()
-		S.event_handler.stop()
+		S.device_selector_gui.close()
+		S.key_class_sel_gui.stop()
 		S.close()
 	
 	def stay_on_top(S):
@@ -140,61 +160,71 @@ class DeviceSetupGui(QMainWindow):
 			S.setWindowFlags(Qt.WindowType.Window)
 		else:
 			S.setWindowFlags(
-			Qt.WindowType.Window|
-			Qt.WindowType.WindowStaysOnTopHint|
-			Qt.WindowType.X11BypassWindowManagerHint
+			Qt.WindowType.Window
+			|Qt.WindowType.WindowStaysOnTopHint
+			|Qt.WindowType.X11BypassWindowManagerHint
 			)
 		S.on_top = not S.on_top
 		S.show()
 	# def actualize_event(S):
 	# 	global DEVICE_TO_SETUP
-	# 	dss = S.device_selector.selected
+	# 	dss = S.device_selector_gui.selected
 	# 	ic(dss,DEVICE_TO_SETUP)
-	# 	S.event_handler.event_reader.change_device(dss)
-	# 	S.event_handler.update_table()
+	# 	S.key_class_sel_gui.event_reader.change_device(dss)
+	# 	S.key_class_sel_gui.update_table()
 	#
 	def page_toggle(S):
-		if not S.device_selector.selected:
+		if not S.device_selector_gui.selected:
 			print(f'No selected device.')
 			return
 		page={S.EVENTPAGE:'event page',S.DEVICEPAGE:'device page'}
 		if S.page_stack.currentIndex() == S.DEVICEPAGE:
-			S.event_handler.change_device(S.device_selector.selected)
+			S.key_class_sel_gui.change_device(S.device_selector_gui.selected)
 			S.page_stack.setCurrentIndex(S.EVENTPAGE)
 			S.setWindowTitle(f'HID "{DEVICE_TO_SETUP.event_by_id}"')
 		else:
+			S.key_class_sel_gui.change_device(None)
 			S.page_stack.setCurrentIndex(S.DEVICEPAGE)
 			S.setWindowTitle(f'Device Selection')
 		print(f'current page_stack {page[S.page_stack.currentIndex()]}')
 		S.update()
 
-class EventsAndWindowsGui(QtWidgets.QWidget):
-#class EventsAndWindowsGui(QMainWindow):
+CODECOL  =0
+KEYCOL      =1
+CLASSCOL =2
+TITLECOL  =3
+
+class KeyClassGui(QtWidgets.QWidget):
+#class KeyClassGui(QMainWindow):
 	def __init__(S):
 		super().__init__()
-		S.setObjectName("DevicesAndWindows")
-		S.resize(800, 600)
+		w=800
+		h=600
+		S.setObjectName("Code_Key_Class_Title")
+		S.resize(w,h)
 		S.setWindowIcon(QIcon('./data/Pied Piper 1.jpeg'))
 		layout=QtWidgets.QVBoxLayout(S)
 		et = S.eventTable=QtWidgets.QTableWidget(S)
-		et.setColumnCount(5)
-		to_content=QHeaderView.ResizeMode.ResizeToContents
-		et.horizontalHeader().setSectionResizeMode( 0 ,to_content)
-		et.horizontalHeader().setSectionResizeMode( 1 ,to_content)
-		et.horizontalHeader().setSectionResizeMode( 2 ,to_content)
-		et.horizontalHeader().setSectionResizeMode( 3 ,to_content)
-		et.horizontalHeader().setStretchLastSection(True) #horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-		et.setHorizontalHeaderLabels(['code','event','number','class','class'])
 		layout.addWidget(et)
-		
+		et.setColumnCount(5)
+		i=0;rest_width=w-40
+		for width in 60,160,230,230,00:
+			#print(f'{rest_width=}')
+			if width == 0:
+				et.setColumnWidth(i,rest_width)
+			else:
+				et.setColumnWidth(i,width)
+			rest_width-=width
+			i+=1
+		S.table_header_set=False
 		S.event_table_row=S.window_table_row=0
 
-		S.ontop_button,S.commit_button,S.save_button, S.quit_button, S.ok_button\
-			=add_buttons(('Ontop','Commit','Save','Quit', 'OK'), S, layout)
+		S.ontop_button,S.commit_button,S.save_button,S.clear_button, S.quit_button, S.back_button\
+			=add_buttons(('Ontop','Commit','Save','Clear','Quit', 'Back'), S, layout)
 		S.setLayout(layout)
 		
 		#ok_button.clicked.connect(S.stop)
-		#S.quit_button.clicked.connect(S.stop)
+		S.clear_button.clicked.connect(S.wipe_clean)
 		S.save_button.clicked.connect(S.save)
 		S.commit_button.clicked.connect(S.ad_mutations)
 		# event_reader thread setup
@@ -205,18 +235,47 @@ class EventsAndWindowsGui(QtWidgets.QWidget):
 		erW.moveToThread(erT)
 		erT.started.connect(erW.run)
 		erT.start()
+		S.update()
+		S.layout().update()
+	
+	def try_to_set_labels(S): # ugly but it works
+		if S.table_header_set:
+			return
+		et = S.eventTable
+		headeritem=et.horizontalHeaderItem(0)
 		
+		if headeritem and headeritem.text() == 'code':
+			S.table_header_set = True
+			return
+		et.setHorizontalHeaderLabels(['code','event','class','title','spare'])
+		
+		to_content=QHeaderView.ResizeMode.ResizeToContents
+		for i in range(0,4):
+			et.horizontalHeader().setSectionResizeMode( i ,to_content)
+		et.horizontalHeader().setSectionResizeMode(i+1, QtWidgets.QHeaderView.ResizeMode.Stretch)
+		# depricated -> et.horizontalHeader().setStretchLastSection(True)
+
 	def stop(S):
 		S.event_reader.running=False
 		S.event_reader_thread.quit()
 		S.event_reader_thread.wait()
 		del S.event_reader_thread
 		S.close()
+	
+	def wipe_clean(S):
+		global DEVICE_TO_SETUP
+		if not DEVICE_TO_SETUP:
+			return
+		DEVICE_TO_SETUP.clear_config()
+		S.eventTable.clear()
+		S.table_header_set=False
+		S.event_table_row=S.window_table_row=0
+		S.update()
 
 	def change_device(S,device):
 		ic()
 		global DEVICE_TO_SETUP
-		S.event_reader.change_device(device)
+		S.event_reader.set_device(device)
 		if not DEVICE_TO_SETUP:
 			return
 		S.event_table_row=S.window_table_row=0
@@ -230,7 +289,7 @@ class EventsAndWindowsGui(QtWidgets.QWidget):
 	def ad_mutations(S):
 		global DEVICE_TO_SETUP
 		S.save()
-		DEVICE_TO_SETUP.update_config()
+		DEVICE_TO_SETUP.config_update()
 		S.commit_button.setText('Commited')
 		print(f'ad_mutations{DEVICE_TO_SETUP.event_by_id})')
 	
@@ -240,7 +299,20 @@ class EventsAndWindowsGui(QtWidgets.QWidget):
 		S.close()
 	
 	def save(S):
-		global DEVICE_TO_SETUP#print(f'save({WorkerEventReader.device.name})')
+		global DEVICE_TO_SETUP # print(f'save({WorkerEventReader.device.name})')
+		et=S.eventTable
+		for i in range(S.window_table_row):
+			checkbox=et.cellWidget(i,TITLECOL)
+			if not checkbox:
+				continue
+			if not checkbox.isChecked():
+				tT=checkbox.toolTip()
+				print(f'Remove {checkbox.toolTip()}')
+				try:
+					DEVICE_TO_SETUP.windowset.takeout(None,tT)
+				except KeyError:
+					DEVICE_TO_SETUP.windowset.show()
+
 		DEVICE_TO_SETUP.write_sets()
 		S.save_button.setText('Saved')
 		S.commit_button.setText('Commit')
@@ -256,19 +328,33 @@ class EventsAndWindowsGui(QtWidgets.QWidget):
 		et.setItem(S.event_table_row, 1, QTableWidgetItem(name))
 		S.save_button.setText('Save')
 		S.commit_button.setText('Commit')
+		S.try_to_set_labels()
 		# some scrolling if needed
 		# index=et.model().index(S.event_table_row, 0)
 		# et.scrollTo(index)
 		et.update()
 		S.event_table_row+=1
 		
-	def display_classes(S,prime, second):
-		print(f'display_classes("{prime }", "{second}")')
+	def display_classes(S,prime_class,title):
+		print(f'display_classes("{prime_class }", "{title}")')
 		et=S.eventTable
 		if et.rowCount()<=S.window_table_row:
+			# need a new row in the table
 			et.insertRow(S.window_table_row)
-		et.setItem(S.window_table_row, 2, QTableWidgetItem(prime))
-		et.setItem(S.window_table_row, 3, QTableWidgetItem(second))
+		cls=limit_string_len(prime_class,24)
+		et.setItem(S.window_table_row,CLASSCOL,QTableWidgetItem(cls))
+		if title:
+			ttl=limit_string_len(title,36)
+			title_widget=QtWidgets.QCheckBox(ttl)
+			title_widget.setToolTip(title)
+			title_widget.setChecked(True)
+			et.setCellWidget(S.window_table_row,TITLECOL,title_widget)
+			# item=QTableWidgetItem(ttl)
+			# item.setFlags( Qt.ItemFlag.ItemIsEnabled
+			#                     | Qt.ItemFlag.ItemIsSelectable
+			#                     | Qt.ItemFlag.ItemIsUserCheckable
+			#                     )
+			#et.setItem(S.window_table_row, TITLECOL, item)
 		S.save_button.setText('Save')
 		S.commit_button.setText('Commit')
 		
@@ -277,6 +363,30 @@ class EventsAndWindowsGui(QtWidgets.QWidget):
 		# et.scrollTo(index)
 		et.update()
 		S.window_table_row+=1
+
+def off_display_classes(S, prime_class, title):
+	print(f'display_classes("{prime_class}", "{title}")')
+	cls=limit_string_len(prime_class, 24)
+	ttl=limit_string_len(title, 36)
+	et=S.eventTable
+	if et.rowCount()<=S.window_table_row:
+		et.insertRow(S.window_table_row)
+	if title:
+		item=QTableWidgetItem(ttl)
+		item.setFlags(Qt.ItemFlag.ItemIsEnabled
+		              |Qt.ItemFlag.ItemIsSelectable
+		              |Qt.ItemFlag.ItemIsUserCheckable
+		              )
+		et.setItem(S.window_table_row, TITLECOL, item)
+	et.setItem(S.window_table_row, CLASSCOL, QTableWidgetItem(cls))
+	S.save_button.setText('Save')
+	S.commit_button.setText('Commit')
+	
+	# some scrolling if needed
+	# index=et.model().index(S.window_table_row, 2)
+	# et.scrollTo(index)
+	et.update()
+	S.window_table_row+=1
 
 def add_buttons(names,window,layout):
 	buttons=[]
@@ -339,32 +449,32 @@ class DeviceSelectorGui(QtWidgets.QWidget):
 			msg.setText("Select a Device first or Quit")
 			msg.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok)
 			msg.setStyleSheet("""
-		                QMessageBox {
-		                    background-color: #FF0000;
-		                    color: #FFFF00;
-		                    font-family: monospace;
-		                    font-size: 16px;
-		                    border: 4px solid #000000;
-		                }
-		                /* Force text color on the message label */
-                QMessageBox > QLabel {
-                    color: #FFFF00;
-                    background-color: #FF0000;
-                }
-                QMessageBox > QLabel#qt-message-box-label {
-                    color: #FFFF00;
-                }
-		                QPushButton {
-		                    background-color: #555555;
-		                    color: #FFFF00;
-		                    border: 2px solid #000000;
-		                    padding: 5px 10px;
-		                    font-family: monospace;
-		                }
-		                QPushButton:hover {
-		                    background-color: #777777;
-		                }
-		            """)
+						QMessageBox {
+							background-color: #FF0000;
+							color: #FFFF00;
+							font-family: monospace;
+							font-size: 16px;
+							border: 4px solid #000000;
+						}
+						/* Force text color on the message label */
+				QMessageBox > QLabel {
+					color: #FFFF00;
+					background-color: #FF0000;
+				}
+				QMessageBox > QLabel#qt-message-box-label {
+					color: #FFFF00;
+				}
+						QPushButton {
+							background-color: #555555;
+							color: #FFFF00;
+							border: 2px solid #000000;
+							padding: 5px 10px;
+							font-family: monospace;
+						}
+						QPushButton:hover {
+							background-color: #777777;
+						}
+					""")
 			msg.exec()
 			
 		if not S.selected:
@@ -379,7 +489,7 @@ def main():
 	if test==0:
 		WorkerEventReader.device = hd.HID_Device('usb-Nordic_2.4G_Wireless_Receiver-if01-event-mouse')
 		WorkerEventReader.device.connect()
-		eventWindowWindow = EventsAndWindowsGui()
+		eventWindowWindow = KeyClassGui()
 		eventWindowWindow.update_table()
 		eventWindowWindow.show()
 	elif test==1:
@@ -390,8 +500,19 @@ def main():
 		setupWindow.show()
 	
 	app.exec()
-	
 
+def make_checkbox(S,content):
+	checkBox = QtWidgets.QCheckBox(S)
+	checkBox.setObjectName(u'{content}')
+	checkBox.setGeometry(QtCore.QRect(211, 200, 331, 35))
+	sizePolicy = QtWidgets.QSizePolicy(EXPANDING, FIXED)
+	sizePolicy.setHorizontalStretch(0)
+	sizePolicy.setVerticalStretch(0)
+	sizePolicy.setHeightForWidth(checkBox.sizePolicy().hasHeightForWidth())
+	checkBox.setSizePolicy(sizePolicy)
+	return checkBox
+
+	
 if __name__ == '__main__':
 	main()
 	
