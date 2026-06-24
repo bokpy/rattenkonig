@@ -1,5 +1,6 @@
 import time
 from Xlib import X,display
+from Xlib.error import BadWindow
 
 def get_active_class_class():
 	d = display.Display()
@@ -41,12 +42,14 @@ def get_active_title_class_class():
 	).value[0]
 
 	window = d.create_resource_object('window', win_id)
-
-	titel = window.get_wm_name()
-	if isinstance(titel,bytes):
-		titel = titel.decode('utf-8', 'ignore')
-	wm_class = window.get_wm_class()
-	return titel, *wm_class
+	try:
+		titel = window.get_wm_name()
+		if isinstance(titel,bytes):
+			titel = titel.decode('utf-8', 'ignore')
+		wm_class = window.get_wm_class()
+		return titel, *wm_class
+	except BadWindow:
+		return '','',''
 
 def window_onder_muis():
 	d = display.Display()

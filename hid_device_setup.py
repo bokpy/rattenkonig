@@ -1,6 +1,7 @@
 #!/bin/python3
 import os
 import sys
+import argparse
 import threading
 import hid_device as hd
 import re
@@ -46,6 +47,30 @@ from icecream import ic
 ic.configureOutput(includeContext=True)
 
 
+parser = argparse.ArgumentParser(
+prog=os.path.basename(__file__),
+description=f'Catches mouse and keyboard input events and then outputs events via an uinput device. '
+            f'What output an event sends to the system can be programmed in a configuration file '
+            f'per physical mouse device.'
+	f'Use hid_device_setup.py to create a frame for a config file.',
+
+epilog='Peep peep'
+	)
+
+
+parser.add_argument('-c','--configdir',
+                    help='directory where the configuration files are.',
+                    default='./configs/',
+                    nargs='?',
+                    action='store'
+)
+
+args = parser.parse_args()
+
+hd.CONFIGDIR = args.configdir
+if hd.CONFIGDIR[-1:] != '/':
+	hd.CONFIGDIR+= '/'
+
 def limit_string_len(string,length):
 	ls=len(string)
 	if ls<=length:
@@ -89,11 +114,6 @@ class WorkerEventReader(QObject):
 		
 	def run(S):
 		global  DEVICE_TO_SETUP
-		#if not S.running or not S.device:
-		# if not S.device:
-		# 	time.sleep(0.1)
-		# 	S.signal_paused.emit()
-		# 	return
 		
 		while S.running:
 			if not DEVICE_TO_SETUP:
@@ -105,17 +125,17 @@ class WorkerEventReader(QObject):
 				time.sleep(0.1)
 				continue
 			
-			name = hd.name_event(event)
-			if DEVICE_TO_SETUP.eventset.stores_new((event.code,name)):
-				S.signal_new_event.emit(event.code,name)
+			event_name = hd.name_event(event)
+			if DEVICE_TO_SETUP.eventset.stores_new((event.code,event_name)):
+				S.signal_new_event.emit(event.code,event_name)
 			
-			title,c1,c2=hd.get_active_title_class_class()
-			if DEVICE_TO_SETUP.windowset.stores_new((c1,title)):
-				S.signal_new_window.emit(c1,title)
+			win_title,c1,c2=hd.get_active_title_class_class()
+			win_title=hd.title_exstract(win_title)
+			clss = hd.CamelCase(c1)
+			if DEVICE_TO_SETUP.windowset.stores_new((clss,win_title)):
+				S.signal_new_window.emit(clss,win_title)
 			time.sleep(0.1)
 		print('EventReader.run() stopped.')
-		#S.running=False
-		#S.finished.emit()
 
 class DeviceSetupGui(QMainWindow):
 	

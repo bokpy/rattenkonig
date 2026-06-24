@@ -13,18 +13,46 @@ import json
 import time
 from Xlib import X, display
 #from Xlib.Xutil import StateMap
+import argparse
 import piper
 import asyncio
 import atexit
 from X11_Utils import get_active_title_class_class
+
+
+parser = argparse.ArgumentParser(
+prog=os.path.basename(__file__),
+description=f'Catches mouse and keyboard input events and then outputs events via an uinput device. '
+			f'What output an event sends to the system can be programmed in a configuration file '
+			f'per physical mouse device.'
+	f'Use hid_device_setup.py to create a frame for a config file.',
+
+epilog='Peep peep'
+	)
+
+
+parser.add_argument('-c','--configdir',
+					help='directory where the configuration files are.',
+					default='./configs/',
+					nargs='?',
+					action='store'
+)
+
+args = parser.parse_args()
 
 from icecream import ic
 ic.configureOutput(includeContext=True)
 
 def JDUMP(jsn):
 	print(json.dumps(jsn,indent=4))
+	
+def eat_all(*args):
+	pass
 
-CONFIGDIR         = "configs/"
+PRINT=print 
+PRINT=eat_all
+
+CONFIGDIR         = None # args.configdir
 KEYSFILEPY        = 'key_def.py'
 KEYSFILE             = ' key_def'
 LOOKUP              = 'hid_lookup'
@@ -36,7 +64,8 @@ TITLE_INDEX=1
 CODE_INDEX=0
 BUTTON_INDEX=1
 
-SENTINEL            = "~~~~~~ SENTINEL ~~~~~~"
+SENTINEL           = "~~~~~~ SENTINEL ~~~~~~"
+MARKER             =  "# ~~~ # "
 FNC                      =  'fnc_'
 DEF                      =  'def ' + FNC
 LDEF                    =  len(DEF)
@@ -44,18 +73,42 @@ PARAMS             =  '(P,ev):'
 LPARAMS           =  len(PARAMS)
 PIPER = piper.PiedPiper()
 
-if not os.path.exists(CONFIGDIR):
-	os.makedirs(CONFIGDIR)
-	
+
 def file_header(name):
 	return f'''# rattenkonig key button configuration
 # date:  {time.asctime()}
+#
+# default(S, event)    print an event for debuging
+#
+# message(S, s)    print a string as typed from a keyboard without capslock on.
+#
+# nap(S, snooze=0.01)    do sleep
+#
+# hold(S, *args)    press and hold a number of keys and/or buttons simultaneous.
+#
+# release(S, *args)    release keys/buttons previous pressed and holded
+#
+# report_move(S, ev_code, ev_value)    send a relative move event to the UInput device
+#
+# simultaneous_keys(S, *args)    press  keys together and also release.
+#
+# passthrough_code(S, ev_type, ev_code, ev_value)    send an event to the UInput device.
+#
+# passthrough(S, event)    send an event to the UInput device.
+#     use to pass trough un altered events
+#
+# syn_report(S)
+#     simulate a single key or button press
+#
+# type_keys(S, *args)    type the keys in args like typed from a keyboard
+
+from evdev import ecodes as ec
 id='{name}'
 
 {LOOKUP}={{}}
 '''
 def import_from_path(module_name, file_path):
-	ic(module_name, file_path)
+	#ic(module_name, file_path)
 	file_path=os.path.abspath(file_path)
 	spec = importlib.util.spec_from_file_location(module_name, file_path)
 	module = importlib.util.module_from_spec(spec)
@@ -86,56 +139,65 @@ def get_abs_path(file):
 		return os.path.realpath(file)
 	return file
 
+def event_key(code,clss,tittle):
+	if isinstance(code,int):
+		code=f'{code:03d}'
+	key=code+clss+tittle
+	key=re.sub(r'[^a-zA-Z0-9]','',key)
+	return key
+
 re_square_bracket=re.compile(r'\[([^,]+),')
 re_parentheses=re.compile(r'\(([^)]+)\)')
 re_relative=re.compile(r'(rel_[_a-z]+)')
 
+event_name_re=re.compile(r"(KEY_\w+)|(BTN_\w+)|(REL_\w+)|(ABS_\w+)")
+
 def name_event(event):
-# 	def match_square_brackets(strng):
-# 		splt1=strng.split('[')
-# 		if len(splt1) < 2:
-# 			return None
-# 		splt2=splt1[1].split(']')
-# 		if len(splt2) < 2:
-# 			return None
-# 		splt3=splt2[0].split(',')
-# 		return splt3[0].strip()
-#
-# 	def match_parentheses(strng):
-# 		splt1=strng.split('(')
-# 		if len(splt1) < 2:
-# 			return None
-# 		splt2=splt1[1].split(')')
-# 		if len(splt2) < 2:
-# 			return None
-# 		return splt2[0]
-#
 	# key event at 1779512964.993459, 274 (BTN_MIDDLE), up
 	# relative axis event at 1781505193.907004, REL_Y
-	cat_event = str(categorize(event)).lower()
-	ic(cat_event)
-	if 'key event at ' in cat_event:
-		
-		match=re_square_bracket.findall(cat_event)
-		ic(match)
-		if match:
-			return match[0].strip("'")
-			
-		match=re_parentheses.findall(cat_event)
-		ic(match)
-		if match:
-			return match[0]
-		return 'failed about 124'
-	match = re_relative.findall(cat_event)
-	if match:
-		return match[0]
-	return 'failed about 129'
+	cat_event = str(categorize(event)) #.lower()
+	match =  event_name_re.findall(cat_event)
+	if len(match)<1:
+		print(cat_event)
+		return 'BadEvent'
+	_key,_btn,_rel,_abs = match[0]
+	if _key:
+		ks=_key.split('_')[1]
+		if len (ks) > 8 :
+			ks = no_vowels(ks)
+		#return CamelCase(_btn)
+		return 'k'+ks
+		return CamelCase(_key)
+	elif _btn:
+		bs=_btn.split('_')[1]
+		if len (bs) > 8 :
+			bs = no_vowels(bs)
+		#return CamelCase(_btn)
+		return 'b'+bs
+	elif _rel:
+		#return CamelCase(_rel)
+		return 'r'+_rel[-1:]
+	return CamelCase(_abs)
 	
-	
-def clean_function_name(name):
-	name = re.sub(r"[!-/:-@[-`{-~]", '_',name)
-	name = re.sub('[^A-Za-z0-9_]', '', name)
-	return name
+def CamelCase(name):
+	if ':' in name:
+		name=name.split(':')[1]
+	name=name.replace('.','_')
+	name=re.sub(r'[^a-zA-Z0-9_]','',name)
+	words = name.split('_')
+	return words[0] + ''.join(word[0].upper() + word[1:] if word else '' for word in words[1:])
+
+def no_vowels(txt):
+	return re.sub(r'[aeiouAEIOU]','',txt)
+
+def fnc_lookup_key(code,clss=None,title=None):
+	cd = f'{code:03d}'
+	if not clss:
+		return cd
+	ret = cd + '_' + CamelCase(clss)
+	if not title:
+		return ret
+	return ret + '_' + CamelCase(title)
 
 class HidSet(set):
 	def __init__(S,filepath):
@@ -212,118 +274,149 @@ class HidSet(set):
 re_def_fnc=re.compile(r'def fnc_\w+\(P,ev\):')
 
 class PreviousConfigIterator:
-	def __init__(S,source_path,dest_file):
-		S.dest=dest_file
-		S.current_func=SENTINEL
-		S.source=None
-		S.source_path=source_path
-		S.open_old_config()
+	def __init__(S,source_path):
+		S.dest=None
+		with open(source_path,'r') as f:
+			S.lines = f.readlines()
+		S.lines_count = len(S.lines)
+		S.index = 0
 		
-		
-	def open_old_config(S):
-		if not S.source_path:
-			S.source=None
-			S.line_red = SENTINEL
-			return
-		try:
-			S.source=open(S.source_path,'r')
-			S.line_red = None
-		except Exception as e:
-			ic(e)
-			exit(1)
-			
-	def __iter__(S):
-		if S.source:
-			S.source.close()
-		S.open_old_config()
+	def set_output(S,open_file):
+		S.dest=open_file
 		return S
- 
+		
+	def __iter__(S):
+		S.index = 0
+		return S
+	
 	def __next__(S):
-		if not S.source:
+		if S.index >= S.lines_count:
 			return SENTINEL
-			
-		if S.line_red:
-			S.dest.write(S.line_red)
-		while True:
-			S.line_red=S.source.readline()
-			if not S.line_red:
-				S.source.close()
-				S.source=None
-				return SENTINEL
-			match=re_def_fnc.findall(S.line_red)
+		S.dest.write(S.lines[S.index])
+		S.index+=1
+		new_line_count=0
+		while S.index < S.lines_count:
+			line     = S.lines[S.index]
+			print(f'-->{line}<--')
+			match=re_def_fnc.findall(line)
 			if match:
 				return match[0].strip()
-			S.dest.write(S.line_red )
-			
-def fnc_lookup_key(code,first_class,title):
-	return f'{code}{first_class}{title}'
-
+			S.dest.write(S.lines[S.index])
+			S.index+=1
+		return SENTINEL
+	
+def yn(true,yes,no):
+	if true:
+		return yes
+	return no
+		
 re_one_char=re.compile(r'KEY_([A-Z])$',re.I)
+re_title =re.compile(r':(\w+) ')
+
+def title_exstract(txt):
+	if not txt:
+		return ''
+	match = re_title.findall(txt)
+	if not match:
+		return ''
+	txt=match[0]
+	if  len(txt)>12:
+		txt=no_vowels(txt)
+	return CamelCase(txt)
+
 class FuntionPrototype:
-	def __init__(S,code,key,primo='',title=''):
-		S.key=key
-		match=re_one_char.findall(key)
-		if match:
-			S.key=match[0].upper()
-		S.code=code
-		S.primo=primo
-		S.title=title
-		S.base_name=S.naming_base()
-		S.def_func=S.def_function()
+	def __init__(S,code,key,clss='',title=''):
+		if key == SENTINEL:
+			S.key=SENTINEL
+			S.code='999'
+			return
+		S.code              = code
+		S.key                 = key
+		S.clss                 = clss
+		S.title                = title
+		S.payload         = None
 		
 	def __str__(S):
-		return f'FuntionPrototype("{S.def_func}")'
+		return f'FuntionPrototype({S.code},{S.key},{S.clss},{S.title})'
 	
 	def is_sentinel(S):
 		return S.key==SENTINEL
+	
+	def compare(S, O):
+		# print(f'compare: {S.def_func} - {other_func_def}')
+		if O.key==SENTINEL:
+			return -1
+		# other_kern=other_func_def[LDEF:-LPARAMS:]
+		# other_split=other_kern.split('_')
+		# other_split+=['', '']
+		# other_key=other_split[0]
+		# other_clss=other_split[1]
+		# other_title=other_split[2]
 		
-	def compare(S,other_func_def):
-		if other_func_def == SENTINEL:
-			return -1
-		sl=len(S.def_func)
-		ol=len(other_func_def)
-		if sl > ol:
+		if S.clss>O.clss:
 			return 1
-		if sl < ol:
+		if S.clss<O.clss:
 			return -1
-		if S.def_func > other_func_def:
+		if S.key>O.key:
 			return 1
-		if S.def_func < other_func_def:
+		if S.key<O.key:
+			return -1
+		if S.title>O.title:
+			return 1
+		if S.title<O.title:
 			return -1
 		return 0
-		
-	def __lt__(S,O):
-		return S.compare(O.def_func) < 0
-		# if S.key != O.key:
-		# 	return S.key<O.key
-		# if S.primo != O.primo:
-		# 	return S.primo<O.primo
-		# return  S.title < O.title
 	
+	def __lt__(S,O):
+		return S.compare(O) < 0
+	
+	def __hash__(S):
+		return hash(str(S))
+	
+class NewPrototype(FuntionPrototype):
+	def __init__(S,code,key,clss='',title=''):
+		super().__init__(code,key,clss,title)
+		_clss = yn(clss,'_','')
+		_ttle= yn(title,'_','')
+		_ev_key=event_key(code,clss,title)
+		S.payload = f"""{MARKER}{code},{key},{clss},{title}
+{DEF}{clss}{_clss}{key}{_ttle}{title}{PARAMS}
+\tpass
+{LOOKUP}['{_ev_key}']=None
+#{LOOKUP}['{_ev_key}']={FNC}{clss}{_clss}{key}{_ttle}{title}"""
+
 	def def_function(S):
 		return f'def {FNC}{S.base_name}{PARAMS}'
 	
 	def naming_base(S):
-		primo_ = '' if S.primo=='' else '_'
-		sec_ = '' if S.title =='' else '_'
-		clean_primo = clean_function_name(S.primo)
-		clean_sec      = clean_function_name(S.title)
-		return f'{S.key}{primo_}{clean_primo}{sec_}{clean_sec}'
+		_clss  = '' if S.clss  =='' else '_'
+		_title = '' if S.title =='' else '_'
+		return f'{S.key}{_clss}{S.clss}{_title}{S.title}'
 	
 	def fnc_name(S):
 		# primo_ = '' if S.primo=='' else '_'
 		# sec_ = '' if S.title =='' else '_'
-		# clean_primo = clean_function_name(S.primo)
-		# clean_sec_ = clean_function_name(S.title)
+		# clean_primo = CamelCase(S.primo)
+		# clean_sec_ = CamelCase(S.title)
 		return f'{FNC}{S.base_name}'
 
 	def write_prototype(S,open_file):
-		open_file.write(f'\n\n{S.def_function()}')
+		open_file.write(f'\n{S.def_function()}')
 		open_file.write('\n\tpass')
-		lookup_key=fnc_lookup_key(S.code,S.primo,S.title)
+		lookup_key=fnc_lookup_key(S.code,S.clss,S.title)
 		open_file.write(f'\n#{LOOKUP}["{lookup_key}"]={S.fnc_name()}')
 		open_file.write(f'\n{LOOKUP}["{lookup_key}"]=None')
-
+		open_file.write(f'\n# added  {time.asctime()}\n')
+	
+def protoList(keyset,class_title_set):
+	class_title_set.append(('',''))
+	proto_set={ NewPrototype(code,key,clss,title)
+				for code,key in keyset for clss,title in class_title_set }
+	for proto in proto_set:
+		print(proto)
+	return proto_set
+	
+	
 class FunctionIterator:
 
 	def __init__(S,keyset,class_title_set):
@@ -383,19 +476,35 @@ class FunctionIterator:
 		S.current.write_prototype(f)
 		
 class HID_Device:
+	trigger_events=(
+	ec.EV_KEY
+	# , ec.EV_ABS
+	# , ec.EV_CNT
+	# , ec.EV_FF
+	# , ec.EV_FF_STATUS
+	# , ec.EV_LED
+	# , ec.EV_MAX
+	# , ec.EV_MSC
+	# , ec.EV_PWR
+	 , ec.EV_REL
+	# , ec.EV_REP
+	# , ec.EV_SND
+	# , ec.EV_SW
+	# , ec.EV_SYN
+	# , ec.EV_UINPUT
+	# , ec.EV_VERSION
+	)
+	
 	def __init__(S,event_by_id,event_path=None):
 		S.event_by_id = event_by_id
 		if not event_path:
 			event_path = get_abs_path('/dev/input/by-id/'+event_by_id)
-			#event_path = os.readlink(abs_p)
 			print(f'Event path: {event_path}')
 		S.event_path = event_path
-		
 		S.event_no= f'{int(re.search('[0-9]+$',S.event_path).group()):02d}'
-		
-		S.configdir  = CONFIGDIR + clean_function_name(event_by_id) +'/'
-		#S.hash = str(hash(event_by_id))
+		S.configdir  = CONFIGDIR + CamelCase(event_by_id) +'/'
 		S.config_file_path=S.configdir+KEYSFILEPY
+		PRINT(f'{S.config_file_path=}')
 	
 		try:
 			os.makedirs(S.configdir,exist_ok=True)
@@ -405,11 +514,8 @@ class HID_Device:
 		S.eventset      = HidSet(S.configdir+'events.json')
 		S.windowset  = HidSet(S.configdir+'windows.json')
 		S.read_sets()
-		# ic(list(S.windowset))
-		# S.eventset.show()
 		S.import_config() # sets S.lookup
-		#S.func_set = None
-		#S.hash = str(hash(event_by_id))
+		S.peek_info() # read S.capabilities, S.name and S.phys
 		S.inputdevice=None
 		
 	def __str__(S):
@@ -421,6 +527,15 @@ class HID_Device:
 		
 	def __lt__(S,O):
 		return S.event_by_id < O.event_by_id
+	
+	def peek_info(S):
+		dev= evdev.InputDevice(S.event_path)
+		S.capabilities=dev.capabilities()
+		# print(f'\n\n{S.event_by_id}')
+		# ic(S.capabilities)
+		S.name=dev.name
+		S.phys=dev.phys
+		dev.close()
 	
 	def is_configured(S):
 		return not S.lookup is None
@@ -443,9 +558,15 @@ class HID_Device:
 			S.lookup=None
 			return False
 		print(f'Import: "{S.config_file_path}"')
-		key_def  = import_from_path(
-			"key_def",S.config_file_path)
-		S.lookup = key_def.hid_lookup
+		try:
+			key_def  = import_from_path(
+				"key_def",S.config_file_path)
+			S.lookup = key_def.hid_lookup
+		except Exception as e:
+			print(f'Import: "{S.config_file_path}" FAILED')
+			ic(e)
+			return False
+		
 		return True
 	
 	def connect(S):
@@ -454,6 +575,9 @@ class HID_Device:
 			S.inputdevice=evdev.InputDevice(S.event_path)
 			S.inputdevice.grab()
 			atexit.register(S.disconnect)
+			
+	def device(S):
+		return S.inputdevice
 			
 	def disconnect(S):
 		if not S.inputdevice:
@@ -482,6 +606,7 @@ class HID_Device:
 				it_new=FunctionIterator(S.eventset, S.windowset)
 				new=next(it_new)
 				while not new.is_sentinel():
+					new.write_prototype(sys.stdout)
 					new.write_prototype(f)
 					new=next(it_new)
 		
@@ -497,96 +622,77 @@ class HID_Device:
 			return bckf
 		
 		if not os.path.isfile(S.config_file_path):
+			ic(S.config_file_path)
 			write_first_time_config()
 			return
 		
 		it_new=FunctionIterator(S.eventset, S.windowset)
 		new=next(it_new)
-		old_config=backup()
-		rev_line = '\n'+'# REVISION : '+str(bck_count)+'\n'
+		#old_config=backup()
+		#rev_line = '\n'+'# REVISION : '+str(bck_count)+'\n'
+		it_old_class=PreviousConfigIterator(S.config_file_path)
 		with open(S.config_file_path,'w') as new_config:
-			it_old=PreviousConfigIterator(old_config,new_config)
-			old=next(it_old)
-			
+			it_old_class.set_output(new_config)
+			it_old = iter(it_old_class)
+			old   = next(it_old)
+			new = next(it_new)
 			while not (old==SENTINEL and new.is_sentinel()):
-				print(f'\n{old} ->\n{new}{new.is_sentinel()=}')
+				
+				# print(f'\n{old} ->\n{new}{new.is_sentinel()=}')
 				comp=new.compare(old)
-				print(f'\n{comp=}')
+				# print(f'\n{comp=}')
 				if comp == 0 :
-					new_config.write('\nCOPY  OLD SCIP NEW\n')
+					#new_config.write('\n# COPY  OLD SKIP NEW\n')
 					old   = next(it_old)
 					new = next(it_new)
 					continue
 				if comp<0:
-					new_config.write('\nWRITE NEW\n')
+					#new_config.write('\n# WRITE NEW\n')
 					new.write_prototype(new_config)
-					new_config.write(rev_line)
+					#new_config.write(rev_line)
 					new=next(it_new)
 					continue
-				new_config.write('\nWRITE OLD\n')
-				old=next(it_old)
-		# new_gen = FunctionIterator(S.eventset, S.windowset)
-		# func = new_gen.next_event_func()
-		# new=next(func )
-		#
-		# if not os.path.isfile(S.config_file_path):
-		# 	print(f'{S.config_file_path} does not exist')
-		# 	# Write first time configuration framework
-		# 	with open(S.config_file_path,'w') as f:
-		# 		f.write(file_header(S.event_by_id))
-		# 		while not SENTINEL in str(new):
-		# 			new_gen.write_prototype(f)
-		# 			new = next(func )
-		# 	return
-		# # merge sort old with new
-		# old_config_file = backup()
-		# with open(S.config_file_path,'w') as f:
-		# 	read_old=PreviousConfigIterator(old_config_file,f)
-		# 	old_func=read_old.advance_a_function()
-		# 	old = next(old_func)
-		# 	while not (  SENTINEL in old and  SENTINEL in new):
-		# 		# new is a FuntionPrototype
-		# 		# old is a string "def fnc_(event_cat..)(P,ev):"
-		# 		compared = new.compare(old)
-		# 		if not compared:
-		# 			# old == new so copy the old edited
-		# 			old   = next(old_func)
-		# 			new = next(func )
-		# 			continue
-		# 		if compared < 0:
-		# 			# old > new put new in front of old
-		# 			new_gen.write_prototype(f)
-		# 			new = next(func )
-		# 			continue
-		# 		# compared > 0 so old < new
-		# 		# copy o;d and advance
-		# 		old = next(old_func)
-		#
+				#new_config.write('\n# WRITE OLD\n')
+				old = next(it_old)
+
 	async def event_listener(S):
+		DOTS=90
+		_dot=DOTS
 		async for event in S.inputdevice.async_read_loop():
-			# print(f'event_listener {evdev.categorize(event)}')
+			if not event.type in  HID_Device.trigger_events:
+				continue
+			#print(f'event_listener {evdev.categorize(event)}')
 			# continue
-			title,primo,secundo=get_active_title_class_class()
+			title,clss,_=get_active_title_class_class()
 			code = str(event.code)
-			print(f'{code},{title},{primo},{secundo} -> {evdev.categorize(event)}')
+			# print(f'{code},{title},{clss},{_} -> {evdev.categorize(event)}')
 			
-			action = S.lookup.get(fnc_lookup_key(code,primo,title))
+			action = S.lookup.get(fnc_lookup_key(code,clss,title))
 			if action:
+				print(f'hit "{code+clss+title}"')
 				action(PIPER,event)
 				continue
-			action = S.lookup.get(fnc_lookup_key(code,primo))
+			action = S.lookup.get(fnc_lookup_key(code,clss))
 			if action:
+				print(f'hit "{code+clss}"')
 				action(PIPER,event)
 				continue
-			action = S.lookup.get(fnc_lookup_key(code) )
+			action = S.lookup.get(fnc_lookup_key(code))
 			if action:
+				print(f'hit "{code}"')
 				action(PIPER,event)
 				continue
-			print(f'NO KEY: {code},{title},{primo},{secundo} ')
+			# print(f'NO KEY: {code},{title},{primo},{secundo} ')
 			# name = name_event(event)
 			# S.eventset.stores_new((event.code,name))
 			# S.windowset.stores_new((primo,secundo))
-			PIPER.squeak_event(event)
+			#PIPER.passthrough(event)
+			_dot-=1
+			if _dot < 0:
+				print(f'<')
+				_dot=DOTS
+				continue
+			print('.',end='',flush=True)
 
 	# async def event_listener_off(S):
 	# 	event = await  S.inputdevice.async_read()
@@ -616,45 +722,20 @@ class HID_Device:
 
 def get_hid_devices():
 	global DETECTEDHIDS
+	dev_paths = {path for path in evdev.list_devices()}
+	# ic(dev_paths)
 	DETECTEDHIDS=[]
 	for by_id_path in os.listdir('/dev/input/by-id'):
 		#print(f'{'/dev/input/by-id/'+by_id_path}')
 		abs_path = get_abs_path('/dev/input/by-id/'+by_id_path)
-		if '/dev/input/event' in abs_path:
-			DETECTEDHIDS.append(HID_Device(event_by_id=by_id_path,event_path=abs_path))
+		# if '/dev/input/event' in abs_path:
+		# 	DETECTEDHIDS.append(HID_Device(event_by_id=by_id_path,event_path=abs_path))
+		# print(f'"{abs_path}"')
+		if abs_path in dev_paths:
+			DETECTEDHIDS.append(HID_Device(event_by_id=by_id_path
+										   ,event_path=abs_path))
 	DETECTEDHIDS.sort()
 	return DETECTEDHIDS
-
-def test_update():
-	#hid=HID_Device('usb-INSTANT_USB_GAMING_MOUSE-if01-event-kbd')
-	hid=HID_Device("usb-Nordic_2.4G_Wireless_Receiver-if01-event-mouse")
-	print(hid.event_no)
-	
-	it_new = FunctionIterator(hid.eventset, hid.windowset)
-	new =next(it_new)
-	it_old   =PreviousConfigIterator(
-		'/home/bob/python/rattenkonig/configs/usb_INSTANT_USB_GAMING_MOUSE_if01_event_kbd/key_def_001bck.py',
-					  sys.stdout)
-	old = next(it_old)
-	emergency_break=120
-	while not (  old == SENTINEL and  new.is_sentinel()):
-		if emergency_break < 0:
-			print(f'\nemergency_break')
-			exit(560)
-		emergency_break-=1
-		print(f'\n{old} ->\n{new}{new.is_sentinel()=}')
-		
-		comp = new.compare(old)
-		print(f'\n{comp=}')
-		if not comp:
-			old   = next(it_old)
-			new = next(it_new )
-			continue
-		if comp < 0:
-			new.write_prototype(sys.stdout)
-			new = next(it_new )
-			continue
-		old = next(it_old)
 
 async def  hid_read_loop():
 	get_hid_devices()
@@ -667,19 +748,82 @@ async def  hid_read_loop():
 			tasks.append(hid.event_listener())
 			print(f'{hid} task added')
 	await asyncio.gather(*tasks)
+
+def kill_switch():
+	pid=os.getpid()
+	print(f'Rattenkonig {pid} now on the trone', end='')
+	home_dir=os.path.expanduser('~')
+	bin_path=os.path.join(home_dir,'bin')
+	paths=os.environ.get("PATH").split(':')
+	if bin_path not in paths:
+		tomcat=os.path.join(paths[0],'tomcat')
+	else:
+		tomcat=os.path.join(bin_path,'tomcat')
+	
+	print(f' can bee killed by "tomcat".')
+	script=f'''#!/bin/bash
+	if kill -SIGINT {pid} 2> /dev/null; then
+		echo "Pied Piper Process {pid} killed successfully."
+		#read
+		exit
+		fi
+	echo "No Pied Piper process {pid} to kill"
+	#read
+
+	'''
+	with open(tomcat, 'w') as f:
+		f.write(script)
+	os.chmod(tomcat, 0o755)
+	atexit.register(os.remove,tomcat)
+	return tomcat
 	
 def main():
 	get_hid_devices()
 	for hid in DETECTEDHIDS:
 		hid.update_config()
 		
+def get_caps():
+	get_hid_devices()
+	caps={}
+	for hid in DETECTEDHIDS:
+		#print(f'{hid.capabilities=}')
+		for key , item in hid.capabilities.items():
+			if key == ec.EV_ABS:
+				print(f'"{hid}"')
+				print(f'ABS caps: {item}')
+			if key not in caps:
+				caps[key]=set(item)
+			else:
+				caps[key].update(item)
+		
+	for key , item in caps.items():
+		#print (f"{key=}: {item=}")
+		caps[key]=list(item)
+	ic(caps)
+	
+def test_proto_list():
+	clss_win=[["hidDeviceSetupPy", ""], ["jetbrainspycharm", ""], ["konsole", ""], ["Navigator", ""]]
+	btns=[[273, "bRIGHT"], [11, "rS"], [8, "rL"], [0, "rX"], [274, "bMIDDLE"], [1, "rY"], [272, "bLEFT"], [275, "bSIDE"], [276, "bEXTRA"]]
+	l=protoList(btns,clss_win)
+	
 if __name__ == '__main__':
+	test_proto_list()
+	exit(0)
+	# CONFIGDIR         = args.configdir
+	# if CONFIGDIR[-1:] != '/':
+	# 	CONFIGDIR+= '/'
+	# get_caps()
+	# exit(0)
 	# print( get_active_title_class_class())
 	# # get_active_title_class_class()
-	test_update()
-	exit(0)
-	
+	# test_update()
+	# exit(0)
+	tomcat=kill_switch()
 	try:
 		asyncio.run(hid_read_loop())
 	except KeyboardInterrupt:
-		print(f'{sys.argv[0]} KeyboardInterrupt')
+		print(f'Terminated by KeyboardInterrupt')
+	
+		
+	# finally :
+	
