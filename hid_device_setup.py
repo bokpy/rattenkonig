@@ -4,9 +4,11 @@ import sys
 import argparse
 import threading
 import hid_device as hd
+from event_config import  gen_code_key_class_title
 import re
 import json
 import time
+from evdev import ecodes as ec
 from Xlib import X, display
 import asyncio
 from PyQt6 import QtCore, QtGui, QtWidgets
@@ -33,6 +35,7 @@ from PyQt6 import uic
 #from qasync import asyncSlot, QEventLoop, QApplication
 #from ui.eventSelector import Ui_MainWindow
 from PyQt6.QtWidgets import QSizePolicy as sp
+
 EXPANDING=sp.Policy.Expanding
 FIXED=sp.Policy.Fixed
 IGNORED =sp.Policy.Ignored
@@ -82,6 +85,8 @@ def limit_string_len(string,length):
 	lback=length-lfront
 	return string[:lfront-2] + '...' + string[1-lback:]
 
+TRIGGEREVENTS={ec.EV_REL,ec.EV_ABS,ec.EV_KEY}
+
 class WorkerEventReader(QObject):
 	# class class
 	signal_new_window  = pyqtSignal(str,str)
@@ -121,20 +126,20 @@ class WorkerEventReader(QObject):
 				time.sleep(.4)
 				continue
 			event = DEVICE_TO_SETUP.inputdevice.read_one()
-			if not event or not event.type or event.type == 4:
-				time.sleep(0.1)
+			if not event or event.type not in TRIGGEREVENTS:
+				time.sleep(0.02)
 				continue
 			
-			event_name = hd.name_event(event)
-			if DEVICE_TO_SETUP.eventset.stores_new((event.code,event_name)):
-				S.signal_new_event.emit(event.code,event_name)
+			code,key,clss,title=gen_code_key_class_title(event)
+			# ic(code,key,clss,title)
+			# ic(event)
 			
-			win_title,c1,c2=hd.get_active_title_class_class()
-			win_title=hd.title_exstract(win_title)
-			clss = hd.CamelCase(c1)
-			if DEVICE_TO_SETUP.windowset.stores_new((clss,win_title)):
-				S.signal_new_window.emit(clss,win_title)
-			time.sleep(0.1)
+			if DEVICE_TO_SETUP.eventset.stores_new(( code,key)):
+				S.signal_new_event.emit(code,key)
+			
+			if DEVICE_TO_SETUP.windowset.stores_new((clss,title)):
+				S.signal_new_window.emit(clss,title)
+			#time.sleep(0.1)
 		print('EventReader.run() stopped.')
 
 class DeviceSetupGui(QMainWindow):
@@ -143,7 +148,7 @@ class DeviceSetupGui(QMainWindow):
 	
 	def __init__(S):
 		super().__init__()
-		S.setWindowTitle('HID Device Configuration Setup')
+		S.setWindowTitle('Piper')
 		S.resize(800, 600)
 		S.setWindowIcon(QIcon('./data/Pied Piper 1.jpeg'))
 		S.on_top=False
@@ -339,12 +344,11 @@ class KeyClassGui(QtWidgets.QWidget):
 		
 	def display_event(S,code, name):
 		
-		print(f'display_event({code:03d},"{name}")')
+		#print(f'display_event({code},"{name}")')
 		et=S.eventTable
 		if et.rowCount()<= S.event_table_row:
 			et.insertRow(S.event_table_row)
-		strcode=f'{code:03d}'
-		et.setItem(S.event_table_row, 0, QTableWidgetItem(strcode))
+		et.setItem(S.event_table_row, 0, QTableWidgetItem(code))
 		et.setItem(S.event_table_row, 1, QTableWidgetItem(name))
 		S.save_button.setText('Save')
 		S.commit_button.setText('Commit')
@@ -356,7 +360,7 @@ class KeyClassGui(QtWidgets.QWidget):
 		S.event_table_row+=1
 		
 	def display_classes(S,prime_class,title):
-		print(f'display_classes("{prime_class }", "{title}")')
+		#print(f'display_classes("{prime_class }", "{title}")')
 		et=S.eventTable
 		if et.rowCount()<=S.window_table_row:
 			# need a new row in the table

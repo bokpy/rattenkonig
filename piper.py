@@ -3,10 +3,7 @@ from evdev import UInput, ecodes as ec
 import evdev as ev
 import time
 import atexit
-# import ladders as ladder
-# import  tracer as trace
-#from ladders import ascii_to_evdev as asc2ev
-#import toys as toy
+import asyncio
 from icecream import ic
 ic.configureOutput(includeContext=True)
 
@@ -492,7 +489,7 @@ class PiedPiper(UInput):
 			print(help_text)
 			exit (e.errno)
 		PiedPiper.piper=S
-		#S.pressed_keys=None
+		S.hold_keys=set()
 		#trace.open_window()
 		atexit.register(S.leave_hamelin)
 
@@ -517,20 +514,19 @@ class PiedPiper(UInput):
 	def syn_report(S):
 		S.write(ec.EV_SYN,ec.SYN_REPORT,0)
 
-	def passthrough(S,event):
+	def relay(S,event):
 		"""
 		send an event to the UInput device.
 		use to pass trough un altered events
 		:param event: an evdev event
 		:return: S
 		"""
-		PRINT(f'passthrough({ev.categorize(event)})')
-	
+		
 		S.write_event(event)
 		S.syn()
 		return S
 
-	def passthrough_code(S,ev_type,ev_code,ev_value):
+	def relay_code(S,ev_type,ev_code,ev_value):
 		"""
 		send an event to the UInput device.
 		:param ev_type:
@@ -557,9 +553,9 @@ class PiedPiper(UInput):
 		:param args: button and or keycodes
 		:return: S
 		"""
-		S.hold(*args)
+		S.press_and_hold(*args)
 		time.sleep(KEYDELAY)
-		S.release(*args)
+		S.release_hold(*args)
 		return S
 
 	def type_key(S,key:int):
@@ -588,6 +584,16 @@ class PiedPiper(UInput):
 			S.type_key(key)
 		#print()
 		return S
+	
+	async def release_keys(S):
+		#print(f' release_keys {S.hold_keys}')
+		while True:
+			await asyncio.sleep(.8)
+			while len(S.hold_keys):
+				key = S.hold_keys.pop()
+				S.write(ec.EV_KEY,key,0)
+				#print(f'release {key}')
+				S.syn()
 
 	def hold(S,*args):
 		'''
@@ -598,13 +604,22 @@ class PiedPiper(UInput):
 		:rtype: PiedPiper
 		'''
 		for key in args:
-			PRINT(f'hold({name_key_button(key)})')
+			if key in S.hold_keys:
+				continue
+			S.hold_keys.add(key)
 			S.write(ec.EV_KEY,key,1)
-		time.sleep(KEYDELAY)
+			#ic(S.hold_keys)
+			S.syn()
+		return S
+	
+	def press_and_hold(S,*args):
+		for key in args:
+			S.write(ec.EV_KEY,key,1)
+			#ic(S.hold_keys)
 		S.syn()
 		return S
-
-	def release(S,*args):
+		
+	def release_hold(S,*args):
 		'''
 		release keys/buttons previous pressed and holded
 		:param args: keys/buttons to release
@@ -612,7 +627,6 @@ class PiedPiper(UInput):
 		:return: S
 		:rtype: PiedPiper
 		'''
-		
 		for key in args:
 			PRINT(f'release({name_key_button(key)})')
 			S.write(ec.EV_KEY,key,0)
@@ -645,26 +659,9 @@ class PiedPiper(UInput):
 		time.sleep(snooze)
 		return S
 
-	# def id_active_window(S):
-	# 	return trace.active_window_name_and_classes()
-	#
-	# def match_active_window(S,name=None,class_name=None,class_class=None,show=False):
-	# 	n,cn,cc=trace.active_window_name_and_classes()
-	# 	#n,cn,cc=trace.mouse_over_window_name_and_classes()
-	# 	if (not n) or (n == "Bad Window"):
-	# 		return False
-	# 	if show:
-	# 		print(f'"{n}","{cn}","{cc}"')
-	# 	if name and (not name in n ):
-	# 		return False
-	# 	if class_name and (not class_name in cn ):
-	# 		return False
-	# 	if class_class and (not class_class in cc):
-	# 		return False
-	# 	return True
-
-	# def id_mouse_window(S):
-	# 	return trace.mouse_over_window_name_and_classes()
+	def emergency_break(S):
+		print( "emergency_break")
+		exit(666)
 
 def test_piper():
 	piper=PiedPiper()
